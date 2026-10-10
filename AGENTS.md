@@ -45,6 +45,7 @@ When nodes, relationships or core queries change, update [docs/ontology.md](docs
 ## Git
 
 - Commit or push only when asked.
+- Feature branches are named `<github-username>/<feature>` in lowercase kebab-case, for example `volfiros/decision-inbox`. `main` is the only unprefixed branch. The Husky `pre-push` hook rejects other names.
 - Commit messages are a single Conventional Commits subject line (`feat(guard): flag decided files`), max 72 characters, no body, no trailers. Husky and commitlint enforce this through the `commit-msg` hook installed by `npm install`.
 
 ## Secrets and local files
