@@ -3,7 +3,10 @@ while read -r local_ref local_sha remote_ref remote_sha; do
     refs/heads/*) branch="${remote_ref#refs/heads/}" ;;
     *) continue ;;
   esac
-  [ "$branch" = "main" ] && continue
+  if [ "$branch" = "main" ]; then
+    echo "Direct pushes to main are blocked. Push a feature branch and open a PR." >&2
+    exit 1
+  fi
   if ! printf '%s' "$branch" | grep -Eq '^[a-z0-9-]+/[a-z0-9]+(-[a-z0-9]+)*$'; then
     echo "Branch '$branch' must be named <github-username>/<feature> in lowercase kebab-case, e.g. volfiros/decision-inbox" >&2
     exit 1

@@ -47,7 +47,7 @@ demo/
 
 Full setup will be added once implementation starts. Planned stack: FalkorDB (Docker), Python backend, React frontend.
 
-Work on feature branches named `<github-username>/<feature>`, for example `volfiros/decision-inbox`.
+Work on feature branches named `<github-username>/<feature>`, for example `volfiros/decision-inbox`, and merge into `main` through a PR. Direct pushes to `main` are blocked.
 
 After cloning, install the git hooks (commit messages follow Conventional Commits, one line, no body):
 
