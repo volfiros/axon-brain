@@ -1,11 +1,9 @@
 # Local-only material (internal notes, raw exports, reference PDFs)
 .private/
 
-# New docs stay local for now; product, ontology and archive are tracked
-docs/*
-!docs/product.md
-!docs/ontology.md
-!docs/archive/
+# ADRs and glossary stay local for now
+docs/adr/
+docs/glossary.md
 
 # Secrets and credentials
 .env
