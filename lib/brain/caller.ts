@@ -1,4 +1,5 @@
 import type { AuthInfo } from "@modelcontextprotocol/server";
+import { resolveCaller as resolveAuthCaller } from "@/lib/auth/caller";
 import { workspaceGraph } from "@/lib/graph/client";
 
 export type RoleName = "Admin" | "Member" | "Guest";
@@ -13,12 +14,10 @@ export type Caller = {
 
 /**
  * Turns a bearer token and the workspace slug from the URL into the calling Person.
- * Throws "not a member" when the token's Account has no Person in this workspace.
- * The sign-in session replaces the token check here with Better Auth.
+ * Better Auth verifies the token; throws when it is invalid or its Account has no Person in this workspace.
  */
 export async function resolveCaller(token: string, workspace: string): Promise<Caller> {
-  const accountId = devAccountId(token);
-  if (!accountId) throw new Error("not a member");
+  const accountId = devAccountId(token) ?? (await resolveAuthCaller(token, workspace)).accountId;
   const [row] = await workspaceGraph(workspace).roQuery<Omit<Caller, "workspace">>(
     `MATCH (p:Person {account_id: $accountId})-[:HAS_ROLE]->(r:Role)
      OPTIONAL MATCH (p)-[:MEMBER_OF]->(t:Team)
@@ -29,7 +28,7 @@ export async function resolveCaller(token: string, workspace: string): Promise<C
   return { ...row, workspace };
 }
 
-// Stand-in until Better Auth merges: "dev:<account_id>" works only under `next dev`, never in a build.
+// Local testing without sign-in: "dev:<account_id>" works only under `next dev`, never in a build.
 function devAccountId(token: string): string | undefined {
   if (process.env.NODE_ENV !== "development" || !token.startsWith("dev:")) return undefined;
   return token.slice("dev:".length);
