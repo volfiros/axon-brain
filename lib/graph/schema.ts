@@ -12,6 +12,7 @@ const CORE_LABELS = [
   "Constraint",
   "Assumption",
   "Alternative",
+  "Question",
   "Topic",
   "Source",
   "Excerpt",

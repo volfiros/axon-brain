@@ -79,10 +79,14 @@ export async function resolveItem(ctx: BrainContext, input: ItemInput, fallback:
   if (isDecision && missing.length > 0) throw new Error(`No constraint or assumption you can see has the id: ${missing.join(", ")}`);
 
   const lowered = input.affects.map((a) => a.toLowerCase());
-  const found = lowered.length === 0 ? [] : await ctx.graph.roQuery<{ id: string; label: string; name: string; keys: string[] }>(
-    `MATCH (x)
+  // Code units and processes carry no VISIBLE_TO edges and are open to the whole workspace; anything that has them is filtered.
+  const found = lowered.length === 0 ? [] : await readAsCaller<{ id: string; label: string; name: string; keys: string[] }>(
+    ctx,
+    `${FROM_CALLER}
+     MATCH (x)
      WHERE (x:CodeUnit OR x:Process OR x:Project OR x:WorkItem)
        AND (toLower(x.path) IN $lowered OR toLower(x.name) IN $lowered OR toLower(x.title) IN $lowered)
+       AND (NOT (x)-[:VISIBLE_TO]->() OR ${visible("x")})
      RETURN x.id AS id, labels(x)[0] AS label, coalesce(x.path, x.name, x.title) AS name,
             [k IN [x.path, x.name, x.title] WHERE k IS NOT NULL | toLower(k)] AS keys`,
     { lowered },

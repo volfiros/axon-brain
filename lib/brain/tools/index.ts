@@ -5,6 +5,7 @@ import proposeFromSource from "./propose-from-source";
 import recall from "./recall";
 import reviewProposals from "./review-proposals";
 import save from "./save";
+import saveSession from "./save-session";
 import supersede from "./supersede";
 import whoami from "./whoami";
 import whoKnows from "./who-knows";
@@ -13,6 +14,7 @@ export const tools: BrainTool[] = [
   whoami,
   recall,
   save,
+  saveSession,
   supersede,
   whoKnows,
   impact,
