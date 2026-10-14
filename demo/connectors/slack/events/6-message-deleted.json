@@ -1,0 +1,28 @@
+{
+  "token": "fixture",
+  "team_id": "T0TALLYROLL",
+  "api_app_id": "A0AXON",
+  "type": "event_callback",
+  "event_id": "Ev0FIXTURE6",
+  "event_time": 1791700006,
+  "event": {
+    "type": "message",
+    "subtype": "message_deleted",
+    "channel": "C01BILLING",
+    "channel_type": "channel",
+    "hidden": true,
+    "deleted_ts": "1791700000.000100",
+    "previous_message": {
+      "type": "message",
+      "user": "U04SAM",
+      "text": "We agreed to link the refund status page from the receipt email and the billing page.",
+      "ts": "1791700000.000100",
+      "edited": {
+        "user": "U04SAM",
+        "ts": "1791700100.000000"
+      }
+    },
+    "ts": "1791700400.000000",
+    "event_ts": "1791700400.000000"
+  }
+}

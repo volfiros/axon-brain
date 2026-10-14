@@ -1,0 +1,16 @@
+{
+  "token": "fixture",
+  "team_id": "T0TALLYROLL",
+  "api_app_id": "A0AXON",
+  "type": "event_callback",
+  "event_id": "Ev0FIXTURE5",
+  "event_time": 1791700005,
+  "event": {
+    "type": "member_joined_channel",
+    "user": "U02DEV",
+    "channel": "C02FOUNDERS",
+    "channel_type": "G",
+    "team": "T0TALLYROLL",
+    "event_ts": "1791700300.000000"
+  }
+}

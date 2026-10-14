@@ -1,0 +1,207 @@
+{
+  "auth.test": {
+    "url": "https://tallyroll.slack.com/",
+    "team": "Tallyroll",
+    "user_id": "U0AXONBOT",
+    "bot_id": "B0AXONBOT"
+  },
+  "users.list": {
+    "members": [
+      {
+        "id": "U01MAYA",
+        "name": "maya",
+        "real_name": "Maya Okafor",
+        "deleted": false,
+        "is_bot": false,
+        "profile": {
+          "display_name": "maya",
+          "real_name": "Maya Okafor",
+          "email": "maya@tallyroll.example"
+        }
+      },
+      {
+        "id": "U02DEV",
+        "name": "dev.raman",
+        "real_name": "Dev Raman",
+        "deleted": false,
+        "is_bot": false,
+        "profile": {
+          "display_name": "dev.raman",
+          "real_name": "Dev Raman",
+          "email": "dev@tallyroll.example"
+        }
+      },
+      {
+        "id": "U03LENA",
+        "name": "lena.f",
+        "real_name": "Lena Fischer",
+        "deleted": false,
+        "is_bot": false,
+        "profile": {
+          "display_name": "lena.f",
+          "real_name": "Lena Fischer",
+          "email": "lena@tallyroll.example"
+        }
+      },
+      {
+        "id": "U04SAM",
+        "name": "sam",
+        "real_name": "Sam Ortiz",
+        "deleted": false,
+        "is_bot": false,
+        "profile": {
+          "display_name": "sam",
+          "real_name": "Sam Ortiz",
+          "email": "sam@tallyroll.example"
+        }
+      },
+      {
+        "id": "U05PRIYA",
+        "name": "priya",
+        "real_name": "Priya Nair",
+        "deleted": false,
+        "is_bot": false,
+        "profile": {
+          "display_name": "priya",
+          "real_name": "Priya Nair",
+          "email": "priya@tallyroll.example"
+        }
+      },
+      {
+        "id": "U0AXONBOT",
+        "name": "axon",
+        "real_name": "Axon",
+        "deleted": false,
+        "is_bot": true,
+        "profile": {
+          "display_name": "axon",
+          "real_name": "Axon"
+        }
+      },
+      {
+        "id": "USLACKBOT",
+        "name": "slackbot",
+        "real_name": "Slackbot",
+        "deleted": false,
+        "is_bot": false,
+        "profile": {
+          "display_name": "Slackbot"
+        }
+      }
+    ],
+    "response_metadata": {
+      "next_cursor": ""
+    }
+  },
+  "conversations.list": {
+    "channels": [
+      {
+        "id": "C01BILLING",
+        "name": "billing",
+        "is_private": false,
+        "is_member": true,
+        "is_archived": false
+      },
+      {
+        "id": "C02FOUNDERS",
+        "name": "founders",
+        "is_private": true,
+        "is_member": true,
+        "is_archived": false
+      },
+      {
+        "id": "C03RANDOM",
+        "name": "random",
+        "is_private": false,
+        "is_member": false,
+        "is_archived": false
+      }
+    ],
+    "response_metadata": {
+      "next_cursor": ""
+    }
+  },
+  "conversations.members:C02FOUNDERS": {
+    "members": [
+      "U01MAYA",
+      "U03LENA",
+      "U0AXONBOT"
+    ],
+    "response_metadata": {
+      "next_cursor": ""
+    }
+  },
+  "conversations.history:C01BILLING": {
+    "messages": [
+      {
+        "type": "message",
+        "user": "U03LENA",
+        "text": "Reminder: refund tickets still need a first reply within one business day.",
+        "ts": "1791590000.000100"
+      },
+      {
+        "type": "message",
+        "user": "U02DEV",
+        "text": "Should the refund button be hidden for invoices older than 90 days?",
+        "ts": "1791500000.000200",
+        "thread_ts": "1791500000.000200",
+        "reply_count": 2
+      },
+      {
+        "type": "message",
+        "subtype": "channel_join",
+        "user": "U05PRIYA",
+        "text": "<@U05PRIYA> has joined the channel",
+        "ts": "1791490000.000300"
+      }
+    ],
+    "has_more": false,
+    "response_metadata": {
+      "next_cursor": ""
+    }
+  },
+  "conversations.replies:C01BILLING:1791500000.000200": {
+    "messages": [
+      {
+        "type": "message",
+        "user": "U02DEV",
+        "text": "Should the refund button be hidden for invoices older than 90 days?",
+        "ts": "1791500000.000200",
+        "thread_ts": "1791500000.000200",
+        "reply_count": 2
+      },
+      {
+        "type": "message",
+        "user": "U01MAYA",
+        "text": "We decided to hide it after 90 days. The processor rejects refunds past that window anyway.",
+        "ts": "1791500300.000400",
+        "thread_ts": "1791500000.000200"
+      },
+      {
+        "type": "message",
+        "user": "U05PRIYA",
+        "text": "I will update the help center article.",
+        "ts": "1791500600.000500",
+        "thread_ts": "1791500000.000200"
+      }
+    ],
+    "has_more": false,
+    "response_metadata": {
+      "next_cursor": ""
+    }
+  },
+  "conversations.history:C02FOUNDERS": {
+    "messages": [
+      {
+        "type": "message",
+        "user": "U01MAYA",
+        "text": "Decision: no annual plans until the EU region is live.",
+        "ts": "1791550000.000600"
+      }
+    ],
+    "has_more": false,
+    "response_metadata": {
+      "next_cursor": ""
+    }
+  }
+}
