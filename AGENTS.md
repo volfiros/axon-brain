@@ -32,6 +32,15 @@ Write self-explanatory code with no comments by default. Add a one-line comment 
 - Vector `score` is a distance: lower is closer. Vector search cannot filter during the search, so over-fetch then filter.
 - Algorithms available: `algo.pageRank`, `algo.betweenness`, `algo.WCC`, `algo.labelPropagation`, `algo.BFS`, `algo.SPpaths`, `algo.SSpaths`, `algo.MSF`.
 
+## UI
+
+- `components/ui/` holds the shared kit (adapted from morpho-lite-apps, MIT, see its LICENSE). `components/` holds Axon blocks: `PageShell`, `PageHeader`, `EmptyState`, `DecisionStatusBadge`. Build pages from these.
+- Colors, spacing, radius and type come from the theme tokens in `app/globals.css` and Tailwind's default scale. No hex values, arbitrary values such as `p-[13px]`, or inline styles in pages and feature components.
+- Variants live on the shared components through class-variance-authority. Add a variant there instead of repeating class strings across pages.
+- Add a new block only when a second use appears.
+- Copy is functional: no taglines, eyebrow text or notes explaining what the UI does. Status colors stay calm (outline, muted, valid, warning), not blue by default.
+- Plain styling: no middle-dot separators, no uppercase eyebrow labels, no accent bars down the side of blocks.
+
 ## Access control and agent reads
 
 - Filter by access inside the Cypher query, starting from the requesting user. The LLM only ever sees rows that passed the filter.

@@ -6,7 +6,7 @@ Axon is a company brain built on [FalkorDB](https://www.falkordb.com/) for [Grap
 
 Tracks: **Track 03: Company Brain** (primary), **Track 02: Agent Memory and Coordination**.
 
-> Status: design phase. Application code starts when the hackathon opens on Oct 15, 2026, 12:01 AM IST.
+> Status: in development during the hackathon (Oct 15 to 18, 2026).
 
 ## The problem
 
@@ -35,6 +35,11 @@ See [docs/ontology.md](docs/ontology.md) for the full model.
 
 ```
 AGENTS.md           instructions for AI coding agents (CLAUDE.md imports it)
+app/                Next.js App Router pages and API routes (/api/health)
+components/         Axon page blocks (PageShell, PageHeader, EmptyState, DecisionStatusBadge)
+components/ui/      UI kit adapted from morpho-lite-apps (MIT, see its LICENSE)
+lib/graph/          FalkorDB connection, graph selection and index setup
+scripts/            db:setup and db:seed, plus the synthetic demo workspace in seed/
 docs/
   product.md        problem, users, demo story
   ontology.md       graph model, customization and access control
@@ -45,27 +50,41 @@ demo/
 
 ## Setup
 
-Full setup will be added once implementation starts. Planned stack: FalkorDB (Docker), Python backend, React frontend.
+Stack: Next.js (App Router) and TypeScript on Vercel, FalkorDB as the only data store, Tailwind CSS for the UI.
 
 Work on feature branches named `<github-username>/<feature>`, for example `volfiros/decision-inbox`, and merge into `main` through a PR. Direct pushes to `main` are blocked.
 
-After cloning, install the git hooks (commit messages follow Conventional Commits, one line, no body):
+Install dependencies and the git hooks (commit messages follow Conventional Commits, one line, no body):
 
 ```bash
 npm install
 ```
 
-Copy the environment template and fill it in:
+Copy the environment template and fill it in. The defaults point at a local FalkorDB:
 
 ```bash
 cp .env.example .env
 ```
 
-Run FalkorDB locally:
+Run FalkorDB locally (its browser UI on port 3000 is left unmapped so it does not clash with Next.js):
 
 ```bash
-docker run -p 6379:6379 -p 3000:3000 -it --rm falkordb/falkordb:latest
+docker run -p 6379:6379 -it --rm falkordb/falkordb:latest
 ```
+
+Load the synthetic demo workspace into the `axon_demo` graph, with its indexes:
+
+```bash
+npm run db:seed
+```
+
+Start the app on http://localhost:3000 and check http://localhost:3000/api/health:
+
+```bash
+npm run dev
+```
+
+`npm run db:setup` creates any missing indexes on every workspace graph, or on one with `npm run db:setup -- <slug>`. New workspaces get their indexes when they are created, so this is only needed after the index list changes.
 
 ## Submission checklist
 

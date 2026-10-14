@@ -51,3 +51,7 @@ falkordb-data/
 *.swp
 .DS_Store
 Thumbs.db
+
+# Next.js generated
+next-env.d.ts
+*.tsbuildinfo
