@@ -1,0 +1,182 @@
+{
+  "/members/": [
+    {
+      "id": "a1000000-0000-4000-8000-000000000001",
+      "first_name": "Maya",
+      "last_name": "Okafor",
+      "display_name": "maya",
+      "email": "maya@tallyroll.example",
+      "avatar": null,
+      "role": 15
+    },
+    {
+      "id": "a1000000-0000-4000-8000-000000000002",
+      "first_name": "Dev",
+      "last_name": "Raman",
+      "display_name": "devr",
+      "email": "dev@tallyroll.example",
+      "avatar": null,
+      "role": 15
+    },
+    {
+      "id": "a1000000-0000-4000-8000-000000000003",
+      "first_name": "Lena",
+      "last_name": "Fischer",
+      "display_name": "lena",
+      "email": "lena@tallyroll.example",
+      "avatar": null,
+      "role": 15
+    },
+    {
+      "id": "a1000000-0000-4000-8000-000000000004",
+      "first_name": "Sam",
+      "last_name": "Ortiz",
+      "display_name": "samo",
+      "email": "sam@tallyroll.example",
+      "avatar": null,
+      "role": 15
+    }
+  ],
+  "/projects/": [
+    {
+      "id": "b2000000-0000-4000-8000-000000000001",
+      "name": "Billing",
+      "identifier": "BIL",
+      "network": 2,
+      "project_lead": "a1000000-0000-4000-8000-000000000003",
+      "archived_at": null
+    },
+    {
+      "id": "b2000000-0000-4000-8000-000000000002",
+      "name": "EU region",
+      "identifier": "EU",
+      "network": 0,
+      "project_lead": "a1000000-0000-4000-8000-000000000001",
+      "archived_at": null
+    }
+  ],
+  "/projects/b2000000-0000-4000-8000-000000000002/members/": [
+    {
+      "id": "e5000000-0000-4000-8000-000000000001",
+      "member": "a1000000-0000-4000-8000-000000000001"
+    },
+    {
+      "id": "e5000000-0000-4000-8000-000000000002",
+      "member": "a1000000-0000-4000-8000-000000000002"
+    }
+  ],
+  "/projects/b2000000-0000-4000-8000-000000000001/work-items/": [
+    {
+      "id": "c3000000-0000-4000-8000-000000000001",
+      "name": "Hold refunds over $500 for approval",
+      "description_html": "<p>Large refunds trigger a processor review. Queue anything over $500 for a human.</p>",
+      "description_stripped": "Large refunds trigger a processor review. Queue anything over $500 for a human.",
+      "project": "b2000000-0000-4000-8000-000000000001",
+      "assignees": [
+        "a1000000-0000-4000-8000-000000000002"
+      ],
+      "created_by": "a1000000-0000-4000-8000-000000000003",
+      "created_at": "2026-10-05T09:00:00Z",
+      "updated_at": "2026-10-12T09:00:00Z",
+      "sequence_id": 1,
+      "priority": "medium"
+    },
+    {
+      "id": "c3000000-0000-4000-8000-000000000002",
+      "name": "Show refund status on the billing page",
+      "description_html": "<p>Customers keep asking where their refund is.</p>",
+      "description_stripped": "Customers keep asking where their refund is.",
+      "project": "b2000000-0000-4000-8000-000000000001",
+      "assignees": [
+        "a1000000-0000-4000-8000-000000000004"
+      ],
+      "created_by": "a1000000-0000-4000-8000-000000000002",
+      "created_at": "2026-10-06T10:00:00Z",
+      "updated_at": "2026-10-10T15:30:00Z",
+      "sequence_id": 2,
+      "priority": "medium"
+    },
+    {
+      "id": "c3000000-0000-4000-8000-000000000003",
+      "name": "Retry failed refund emails",
+      "description_html": "<p>Refund confirmation emails sometimes bounce on the first try.</p>",
+      "description_stripped": "Refund confirmation emails sometimes bounce on the first try.",
+      "project": "b2000000-0000-4000-8000-000000000001",
+      "assignees": [
+        "a1000000-0000-4000-8000-000000000002"
+      ],
+      "created_by": "a1000000-0000-4000-8000-000000000003",
+      "created_at": "2026-10-07T08:00:00Z",
+      "updated_at": "2026-10-08T11:00:00Z",
+      "sequence_id": 3,
+      "priority": "medium"
+    }
+  ],
+  "/projects/b2000000-0000-4000-8000-000000000002/work-items/": [
+    {
+      "id": "c3000000-0000-4000-8000-000000000004",
+      "name": "Provision the EU database",
+      "description_html": "<p>Brightwater pilot needs customer data hosted in the EU.</p>",
+      "description_stripped": "Brightwater pilot needs customer data hosted in the EU.",
+      "project": "b2000000-0000-4000-8000-000000000002",
+      "assignees": [
+        "a1000000-0000-4000-8000-000000000002"
+      ],
+      "created_by": "a1000000-0000-4000-8000-000000000001",
+      "created_at": "2026-10-03T12:00:00Z",
+      "updated_at": "2026-10-11T16:00:00Z",
+      "sequence_id": 4,
+      "priority": "medium"
+    }
+  ],
+  "/projects/b2000000-0000-4000-8000-000000000001/work-items/c3000000-0000-4000-8000-000000000001/comments/": [
+    {
+      "id": "d4000000-0000-4000-8000-000000000001",
+      "comment_html": "<p>Decision: the approval queue lives in the billing admin, not in Slack.</p>",
+      "comment_stripped": "Decision: the approval queue lives in the billing admin, not in Slack.",
+      "issue": "c3000000-0000-4000-8000-000000000001",
+      "project": "b2000000-0000-4000-8000-000000000001",
+      "actor": "a1000000-0000-4000-8000-000000000003",
+      "created_by": "a1000000-0000-4000-8000-000000000003",
+      "created_at": "2026-10-11T09:30:00Z",
+      "updated_at": "2026-10-11T09:30:00Z"
+    },
+    {
+      "id": "d4000000-0000-4000-8000-000000000002",
+      "comment_html": "<p>Makes sense, I will add it to the admin sidebar.</p>",
+      "comment_stripped": "Makes sense, I will add it to the admin sidebar.",
+      "issue": "c3000000-0000-4000-8000-000000000001",
+      "project": "b2000000-0000-4000-8000-000000000001",
+      "actor": "a1000000-0000-4000-8000-000000000002",
+      "created_by": "a1000000-0000-4000-8000-000000000002",
+      "created_at": "2026-10-11T10:05:00Z",
+      "updated_at": "2026-10-11T10:05:00Z"
+    }
+  ],
+  "/projects/b2000000-0000-4000-8000-000000000001/work-items/c3000000-0000-4000-8000-000000000002/comments/": [
+    {
+      "id": "d4000000-0000-4000-8000-000000000003",
+      "comment_html": "<p>We decided to show the processor refund status as-is instead of mapping it to our own states.</p>",
+      "comment_stripped": "We decided to show the processor refund status as-is instead of mapping it to our own states.",
+      "issue": "c3000000-0000-4000-8000-000000000002",
+      "project": "b2000000-0000-4000-8000-000000000001",
+      "actor": "a1000000-0000-4000-8000-000000000002",
+      "created_by": "a1000000-0000-4000-8000-000000000002",
+      "created_at": "2026-10-10T15:00:00Z",
+      "updated_at": "2026-10-10T15:00:00Z"
+    }
+  ],
+  "/projects/b2000000-0000-4000-8000-000000000002/work-items/c3000000-0000-4000-8000-000000000004/comments/": [
+    {
+      "id": "d4000000-0000-4000-8000-000000000004",
+      "comment_html": "<p>Let's go with Frankfurt for the EU region, since the Brightwater contract names Germany.</p>",
+      "comment_stripped": "Let's go with Frankfurt for the EU region, since the Brightwater contract names Germany.",
+      "issue": "c3000000-0000-4000-8000-000000000004",
+      "project": "b2000000-0000-4000-8000-000000000002",
+      "actor": "a1000000-0000-4000-8000-000000000001",
+      "created_by": "a1000000-0000-4000-8000-000000000001",
+      "created_at": "2026-10-11T15:45:00Z",
+      "updated_at": "2026-10-11T15:45:00Z"
+    }
+  ]
+}

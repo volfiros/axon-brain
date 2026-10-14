@@ -1,0 +1,17 @@
+{
+  "token": "fixture",
+  "team_id": "T0TALLYROLL",
+  "api_app_id": "A0AXON",
+  "type": "event_callback",
+  "event_id": "Ev0FIXTURE2",
+  "event_time": 1791700002,
+  "event": {
+    "type": "message",
+    "channel": "C01BILLING",
+    "channel_type": "channel",
+    "user": "U04SAM",
+    "text": "We agreed to link the refund status page from the receipt email.",
+    "ts": "1791700000.000100",
+    "event_ts": "1791700000.000100"
+  }
+}
