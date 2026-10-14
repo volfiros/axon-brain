@@ -88,18 +88,36 @@ Every extracted node or edge carries `confidence`, `extracted_by` and, once appr
 
 ```
 (Person)-[:HAS_ROLE]->(Role)
-(Source | Decision | Constraint)-[:VISIBLE_TO]->(Team | Role | Person)
+(Source | Decision | Constraint | Assumption)-[:VISIBLE_TO]->(Team | Role | Person)
 sensitivity: 'public' | 'team' | 'restricted'
 ```
 
+- `public` is visible to Admin, Member and Guest. `team` is visible to Admin and Member. `restricted` is visible to Admin, or to the specific Team or Person it names.
 - Visibility is inherited from the source. A decision extracted from a restricted thread is restricted by default.
 - Every retrieval starts from the user and only follows visible nodes.
 - One FalkorDB graph per workspace for isolation between companies.
+- A Person points to its Account with `account_id`. Accounts live in the shared accounts graph (ADR 0001). A Person seen only in imported data has no `account_id`.
 
 ```cypher
 MATCH (u:Person {id: $uid})-[:MEMBER_OF|HAS_ROLE*1..2]->(g)<-[:VISIBLE_TO]-(d:Decision)
 WHERE d.status = 'accepted' AND (d)-[:AFFECTS]->(:CodeUnit {path: $path})
 RETURN d
+```
+
+## Graphs and indexes
+
+- Accounts graph: `<prefix>_accounts`. Workspace graphs: `<prefix>_<slug>`, where the slug is the same one used in `/w/<slug>/mcp` (lowercase letters, digits and hyphens).
+- Every core node has a string `id`. Each Workspace graph gets these indexes when it is created (`ensureWorkspaceSchema` in `lib/graph/schema.ts`):
+
+| Kind | Indexed |
+| --- | --- |
+| Range | `id` on every core label, `Person.account_id`, `CodeUnit.path`, `Decision.status` |
+| Full-text | `Decision(title, statement)`, `Excerpt(text)` |
+| Vector | `Decision.embedding`, cosine, only when `EMBEDDING_DIMENSION` is set |
+
+```cypher
+CALL db.idx.fulltext.queryNodes('Decision', 'refund*') YIELD node, score
+RETURN node.title, score
 ```
 
 ## Customization

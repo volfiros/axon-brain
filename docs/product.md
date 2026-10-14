@@ -24,6 +24,24 @@ Decisions made in a PR comment, a call or a Slack thread are effectively invisib
 | Decision Inbox | Extracted decisions to confirm, plus manual `/decide` capture |
 | Guard | PR check and MCP server so coding agents check past decisions before editing |
 
+## Setup flow
+
+Axon is set up and used from the coding agent. The browser is only for signing in and for settings.
+
+**Admin**
+
+1. Gets the Axon MCP into their coding agent, either from a `.mcp.json` already in the codebase or by giving the agent a setup link that it follows to add Axon.
+2. Signs in from the MCP. The agent opens the default browser.
+3. In the browser, creates a Workspace, connects the tools the team uses (GitHub, Slack, Plane and others) and sets any permissions they need.
+4. Links the Workspace to the project they are in, which commits a `.mcp.json` with the address `/w/<workspace>/mcp`.
+5. Goes back to the agent and starts working.
+
+**Member and Guest**
+
+The same path: open a codebase that has the Workspace's `.mcp.json`, sign in from the MCP in the browser, join the Workspace (new invites start as Guest), connect any tools that need their own account, then go back to work.
+
+At every step the MCP tells the person what is set up, what is missing and what to do next, so nobody needs a separate guide.
+
 ## Collaboration
 
 - Decisions have a status: proposed, accepted, superseded.
