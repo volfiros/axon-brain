@@ -48,7 +48,7 @@ Axon uses a small fixed core that the agent reasons over, plus workspace types e
 
 ```
 (Person)-[:MEMBER_OF]->(Team)
-(Person)-[:OWNS]->(CodeUnit | Process | Project)
+(Person)-[:OWNS]->(CodeUnit | Process | Project | WorkItem)
 (Person)-[:AUTHORED]->(Source)
 (Person)-[:WORKED_ON {count, last_at}]->(CodeUnit | WorkItem)
 ```
@@ -88,7 +88,7 @@ Every extracted node or edge carries `confidence`, `extracted_by` and, once appr
 
 ```
 (Person)-[:HAS_ROLE]->(Role)
-(Source | Decision | Constraint | Assumption)-[:VISIBLE_TO]->(Team | Role | Person)
+(Source | Project | Decision | Constraint | Assumption)-[:VISIBLE_TO]->(Team | Role | Person)
 sensitivity: 'public' | 'team' | 'restricted'
 ```
 
@@ -127,12 +127,10 @@ The shared `<prefix>_accounts` graph holds sign-in identity and the index of Wor
 ```
 (Account)-[:JOINED {at}]->(Workspace)
 (Invite)-[:FOR]->(Workspace)
-(Connector)-[:FOR]->(Workspace)
 ```
 
 - `Workspace {id, slug, name, created_at}`: `slug` is stable and names the Workspace graph and its `/w/<slug>/mcp` address.
 - `Invite {code, created_at, expires_at}`: one live invite per Workspace, valid for 7 days. Joining through it adds a Person with the Guest Role.
-- `Connector {provider, installation_id}`: written by the connectors feature.
 - `Account {id, name, email, username, ...}` and the other sign-in nodes are written by Better Auth through the FalkorDB adapter (`lib/auth/falkordb-adapter.ts`). Each Better Auth model is one label with flat properties, linked by id properties rather than edges: `Credential` (password hash), `Session`, `Verification`, `Jwks`, and the OAuth provider's `OauthClient`, `OauthAccessToken`, `OauthRefreshToken`, `OauthConsent` and `OauthResource`. Dates are ISO strings.
 - Each Workspace registers an `OauthResource` with `identifier` set to its MCP address. Access tokens carry that address as their audience, so a token works for one Workspace only (ADR 0004).
 
@@ -194,3 +192,33 @@ Teams start from a template and rename or add types. Every custom type maps to a
 | `who_knows(topic)` | People ranked by ownership, work history and centrality |
 | `what_changed(since, person)` | Feed for My Brief |
 | `propose_decision(...)` | Writes to the inbox, never straight to the graph |
+
+## Plane and Slack
+
+An Admin connects Plane and Slack once per Workspace and Axon keeps them in sync. Each connector turns what it reads into Sources, Persons, Projects and links, and one shared writer puts them in the graph.
+
+| From | Node | Edges |
+| --- | --- | --- |
+| Plane project | `Project`, id `plane:<id>` | project lead `OWNS` it |
+| Plane work item | `(:WorkItem:Source)`, id `plane:<id>` | `PART_OF` its Project, creator `AUTHORED`, assignees `OWNS` |
+| Plane comment | `(:Source:Message)`, id `plane:<id>` | `PART_OF` its work item, author `AUTHORED` |
+| Slack message | `(:Source:Message)`, id `slack:<channel>:<ts>` | author `AUTHORED`, a thread reply is `PART_OF` its root message |
+| Plane member, Slack user | `Person` | matched across tools, see below |
+
+- Every connector Source carries `connector`, `external_id`, `url`, `created_at`, `updated_at` and `synced_at`. A deleted message or work item gets `deleted_at` and stays in the graph.
+- A Person keeps every tool identity in `external_ids` (`plane:<id>`, `slack:<id>`). A new identity joins an existing Person when one already has that id, or on exact email. Handles never match, because anyone can pick one. Otherwise Axon creates `p_<connector>_<id>`.
+- A Plane project that is not explicitly public, or a private Slack channel, is `restricted`: its Sources are `VISIBLE_TO` the Admin Role and the project or channel members. Everything else from these tools is `team`.
+- Sync: Plane webhooks (`/api/w/<slug>/plane/webhook`, HMAC in `X-Plane-Signature`), a Plane poll route (`/api/w/<slug>/plane/poll`) that fetches work items updated since the newest `updated_at`, and Slack Events (`/api/w/<slug>/slack/events`, v0 signature, five-minute replay window). Joining or leaving a private channel rewrites who can see its messages.
+
+```cypher
+MATCH (p:Person)-[:OWNS]->(w:WorkItem:Source {connector: 'plane'})
+WHERE w.deleted_at IS NULL AND toLower(w.title) CONTAINS 'refund'
+RETURN p.name, w.title, w.url
+```
+
+```cypher
+MATCH (p:Person)
+WHERE any(k IN p.external_ids WHERE k STARTS WITH 'plane:')
+  AND any(k IN p.external_ids WHERE k STARTS WITH 'slack:')
+RETURN p.name, p.external_ids
+```
