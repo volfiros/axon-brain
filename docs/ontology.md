@@ -202,6 +202,7 @@ The brain MCP server lives at `/w/<workspace>/mcp` (ADR 0003). The workspace com
 | `whoami` | The caller's Person, Role, Teams and Workspace |
 | `recall(question)` | Answer with Decision and status, Because, Rejected, Decided by and date, Source quote and link, graph Path |
 | `save(item, confirm)` | Preview a Decision, Constraint, Assumption or context note; writes only with `confirm: true` |
+| `save_session(step, session, items)` | Preview, then save a coding session's distilled decisions, constraints, assumptions, questions and notes (see Session capture) |
 | `supersede(old_id, item, confirm)` | Replace a decision and keep the old one as history |
 | `who_knows(topic)` | People ranked by a scoring query over ownership, decisions, sources and changes |
 | `impact(constraint)` | Current decisions that rely on a constraint or assumption (`BECAUSE_OF`) |
@@ -325,4 +326,40 @@ MATCH (p:Person)
 WHERE any(k IN p.external_ids WHERE k STARTS WITH 'plane:')
   AND any(k IN p.external_ids WHERE k STARTS WITH 'slack:')
 RETURN p.name, p.external_ids
+```
+
+## Session capture
+
+A teammate's coding agent saves what a session settled with `save_session`. The agent distills the conversation on the teammate's machine and sends only structured items. Axon makes no LLM call and never stores the transcript.
+
+Items are Decision, Constraint, Assumption, Question and context notes. `Question` is a core node for an open question that a session left unanswered:
+
+```
+(:Question {id, text, status: 'open', sensitivity, recorded_at})
+(Question)-[:ABOUT]->(Topic)
+(Question)-[:DERIVED_FROM]->(Excerpt)
+```
+
+Each session becomes one `Source:Conversation` per sensitivity, so its items copy `VISIBLE_TO` edges that match their own sensitivity. Saving again with the same `session_id` reuses it:
+
+```
+(:Source:Conversation {id, title, repo, branch, session_id, summary, sensitivity, created_at})
+(Person)-[:AUTHORED]->(Conversation)
+(Excerpt)-[:IN]->(Conversation)
+```
+
+- Every item carries 1 to 3 Excerpts, short verbatim quotes that prove its one-line statement.
+- The server scans every field before writing. Items holding keys, tokens or code, or a field over 500 characters (300 for an excerpt), are rejected, and the reply names only the field and the kind of match. Emails, phone numbers and local paths are masked.
+- Saving is idempotent per Conversation: a Decision with the same title, a Constraint, Assumption or Question with the same statement, a note with the same excerpt, or an excerpt a Decision already has from this Conversation is not written twice. The `summary` is rebuilt from the notes' Excerpts (`note` property) on every save.
+- Decisions, Constraints, Assumptions and notes are written through `writeItem` with the Conversation as their Source, so they copy its `VISIBLE_TO` edges. A Question copies them the same way. Notes become the Conversation's `summary`, one line each, with their Excerpts `IN` it.
+- The agent marks each Decision new, repeat or change after calling recall. The person confirms every item in the preview, so new and changed Decisions are saved as `accepted` with `confirmed_by`. A repeat writes no Decision and adds the session's Excerpts to the existing one; if that Decision is still `proposed`, the person's confirmation accepts it.
+- A change writes `(new)-[:SUPERSEDES]->(old)` and sets the old Decision's status to `superseded` and `valid_to`, the same as `supersede`. The new Decision keeps the old one's sensitivity unless the session is narrower. Nothing is deleted.
+- The server re-checks the agent's call inside the caller's visibility: a referenced Decision must be one the caller can see, and a "new" Decision whose normalized title equals a current visible Decision is linked to it instead.
+
+```cypher
+MATCH (u:Person {id: $personId})-[:HAS_ROLE]->(role:Role)
+CALL db.idx.fulltext.queryNodes('Decision', $words) YIELD node AS d
+WITH u, role, d
+WHERE d.status IN ['accepted', 'proposed'] AND <visible(d)>
+RETURN d.id, d.title, d.status
 ```
