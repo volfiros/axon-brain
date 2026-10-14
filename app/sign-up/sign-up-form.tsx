@@ -8,7 +8,7 @@ import { FormError } from "@/components/form-error";
 import { FormField } from "@/components/form-field";
 import { TextLink } from "@/components/text-link";
 import { Button } from "@/components/ui/button";
-import { authClient, followAuthRedirect } from "@/lib/auth/client";
+import { authClient, followAuthRedirect, safeNextPath } from "@/lib/auth/client";
 
 export function SignUpForm() {
   const router = useRouter();
@@ -35,8 +35,7 @@ export function SignUpForm() {
       return;
     }
     if (followAuthRedirect(data)) return;
-    const next = new URLSearchParams(search).get("next");
-    router.push(next?.startsWith("/") && !next.startsWith("//") ? next : "/onboarding");
+    router.push(safeNextPath(new URLSearchParams(search).get("next")));
     router.refresh();
   }
 

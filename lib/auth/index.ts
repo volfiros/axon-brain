@@ -5,7 +5,7 @@ import { jwt, username } from "better-auth/plugins";
 
 import { falkordbAdapter } from "./falkordb-adapter";
 
-export const appUrl = (process.env.BETTER_AUTH_URL || "http://localhost:3105").replace(/\/$/, "");
+export const appUrl = (process.env.BETTER_AUTH_URL || "http://localhost:3000").replace(/\/$/, "");
 
 export const auth = betterAuth({
   baseURL: appUrl,

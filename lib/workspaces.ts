@@ -99,14 +99,18 @@ async function registerMcpResource(workspace: Workspace): Promise<void> {
 
 export async function createWorkspace(account: AccountRef, input: { name: string; slug: string }): Promise<Workspace> {
   const graph = workspaceGraph(input.slug);
-  const taken = (await getWorkspace(input.slug)) || (await listWorkspaceSlugs()).includes(input.slug);
-  if (taken) throw new Error("That workspace address is already taken.");
+  const taken = new Error("That workspace address is already taken.");
+  if ((await listWorkspaceSlugs()).includes(input.slug)) throw taken;
 
   const workspace: Workspace = { id: `ws_${randomUUID()}`, slug: input.slug, name: input.name };
-  await accountsGraph().query(
-    "CREATE (:Workspace {id: $id, slug: $slug, name: $name, created_at: localdatetime()})",
+  // MERGE is atomic in FalkorDB; a check-then-CREATE in one query let parallel requests both create.
+  const [claimed] = await accountsGraph().query<{ id: string }>(
+    `MERGE (w:Workspace {slug: $slug})
+     ON CREATE SET w.id = $id, w.name = $name, w.created_at = localdatetime()
+     RETURN w.id AS id`,
     workspace,
   );
+  if (claimed?.id !== workspace.id) throw taken;
   await ensureWorkspaceSchema(graph);
   await graph.query(
     `MERGE (:Role {id: 'role_admin', name: 'Admin'})
@@ -121,7 +125,7 @@ export async function createWorkspace(account: AccountRef, input: { name: string
 export async function createInvite(slug: string, adminAccountId: string): Promise<string> {
   const admin = await getMember(slug, adminAccountId);
   if (admin?.role !== "Admin") throw new Error("Only an Admin can invite people.");
-  const code = randomBytes(6).toString("base64url");
+  const code = randomBytes(16).toString("base64url");
   // One live invite per Workspace: making a new one retires the old code.
   await accountsGraph().query(
     `MATCH (w:Workspace {slug: $slug})
