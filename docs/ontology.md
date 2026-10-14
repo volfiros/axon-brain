@@ -120,6 +120,45 @@ CALL db.idx.fulltext.queryNodes('Decision', 'refund*') YIELD node, score
 RETURN node.title, score
 ```
 
+## Accounts graph
+
+The shared `<prefix>_accounts` graph holds sign-in identity and the index of Workspaces (ADR 0001).
+
+```
+(Account)-[:JOINED {at}]->(Workspace)
+(Invite)-[:FOR]->(Workspace)
+(Connector)-[:FOR]->(Workspace)
+```
+
+- `Workspace {id, slug, name, created_at}`: `slug` is stable and names the Workspace graph and its `/w/<slug>/mcp` address.
+- `Invite {code, created_at, expires_at}`: one live invite per Workspace, valid for 7 days. Joining through it adds a Person with the Guest Role.
+- `Connector {provider, installation_id}`: written by the connectors feature.
+- `Account {id, name, email, username, ...}` and the other sign-in nodes are written by Better Auth through the FalkorDB adapter (`lib/auth/falkordb-adapter.ts`). Each Better Auth model is one label with flat properties, linked by id properties rather than edges: `Credential` (password hash), `Session`, `Verification`, `Jwks`, and the OAuth provider's `OauthClient`, `OauthAccessToken`, `OauthRefreshToken`, `OauthConsent` and `OauthResource`. Dates are ISO strings.
+- Each Workspace registers an `OauthResource` with `identifier` set to its MCP address. Access tokens carry that address as their audience, so a token works for one Workspace only (ADR 0004).
+
+In each Workspace graph, a signed-in member is `(Person {id, name, handle, account_id})-[:HAS_ROLE]->(Role {id, name})`, where `handle` is the Account username and the Roles are `role_admin`, `role_member` and `role_guest`. The creator of a Workspace is its first Admin.
+
+Resolving an MCP caller (`resolveCaller` in `lib/auth/caller.ts`) verifies the token, then reads the Person and Role through `GRAPH.RO_QUERY`:
+
+```cypher
+MATCH (p:Person {account_id: $accountId})-[:HAS_ROLE]->(r:Role)
+RETURN p.id AS personId, r.name AS role
+```
+
+Changing a Role checks the Admin and keeps at least one Admin inside the same query:
+
+```cypher
+MATCH (:Person {account_id: $adminAccountId})-[:HAS_ROLE]->(:Role {name: 'Admin'})
+MATCH (p:Person {id: $personId})-[current:HAS_ROLE]->(from:Role)
+MATCH (to:Role {name: $role})
+OPTIONAL MATCH (other:Person)-[:HAS_ROLE]->(:Role {name: 'Admin'})
+WHERE other <> p
+WITH p, current, from, to, count(other) AS otherAdmins
+WHERE from.name <> 'Admin' OR to.name = 'Admin' OR otherAdmins > 0
+DELETE current
+CREATE (p)-[:HAS_ROLE]->(to)
+```
+
 ## Customization
 
 The workspace schema lives in the graph:
