@@ -155,6 +155,14 @@ function storedTime(value: unknown): string | undefined {
   return value ? `${String(value)}Z` : undefined;
 }
 
+// Only people already synced from users.list count, which keeps bots and unknown accounts out of the graph.
+async function isSyncedPerson(ctx: ConnectorContext, userId: string): Promise<boolean> {
+  const rows = await ctx.graph.roQuery("MATCH (p:Person) WHERE $key IN p.external_ids RETURN p.id", {
+    key: `slack:${userId}`,
+  });
+  return rows.length > 0;
+}
+
 async function membershipBatch(ctx: ConnectorContext, event: SlackEvent): Promise<Batch | null> {
   if (!event.channel || !event.user) return null;
   const known = await knownChannel(ctx, event.channel);
@@ -162,11 +170,7 @@ async function membershipBatch(ctx: ConnectorContext, event: SlackEvent): Promis
 
   const members = new Set((known.scope.visible_to ?? []).map((ref) => ref.external_id));
   if (event.type === "member_joined_channel") {
-    // Only people already synced from users.list are added, which keeps bots and unknown accounts out.
-    const [person] = await ctx.graph.roQuery("MATCH (p:Person) WHERE $key IN p.external_ids RETURN p.id", {
-      key: `slack:${event.user}`,
-    });
-    if (!person) return null;
+    if (!(await isSyncedPerson(ctx, event.user))) return null;
     members.add(event.user);
   } else {
     members.delete(event.user);
@@ -208,17 +212,18 @@ export async function* slackEventBatches(envelope: SlackEnvelope, ctx: Connector
   }
   if (event.type !== "message") return;
 
+  const deleted = event.subtype === "message_deleted";
+  const message =
+    event.subtype === "message_changed"
+      ? event.message
+      : deleted
+        ? event.previous_message
+        : { ts: event.ts!, user: event.user, text: event.text, thread_ts: event.thread_ts, subtype: event.subtype };
+  if (!message?.ts || !message.user || !isConversationMessage(message)) return;
+  if (!(await isSyncedPerson(ctx, message.user))) return;
+
   const { scope, teamUrl } = await lookupChannel(ctx, event.channel, event.channel_type);
-  if (event.subtype === "message_changed" && event.message) {
-    if (isConversationMessage(event.message)) yield messageBatch(scope, event.message, teamUrl);
-    return;
-  }
-  if (event.subtype === "message_deleted" && event.previous_message) {
-    yield messageBatch(scope, event.previous_message, teamUrl, new Date().toISOString());
-    return;
-  }
-  const message: SlackMessage = { ts: event.ts!, user: event.user, text: event.text, thread_ts: event.thread_ts, subtype: event.subtype };
-  if (event.ts && isConversationMessage(message)) yield messageBatch(scope, message, teamUrl);
+  yield messageBatch(scope, message, teamUrl, deleted ? new Date().toISOString() : undefined);
 }
 
 export function verifySlackSignature(

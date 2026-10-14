@@ -1,6 +1,6 @@
 {
   "auth.test": {
-    "url": "https://tallyroll.slack.com/",
+    "url": "https://tallyroll.slack.example/",
     "team": "Tallyroll",
     "user_id": "U0AXONBOT",
     "bot_id": "B0AXONBOT"

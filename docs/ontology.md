@@ -169,8 +169,8 @@ An Admin connects Plane and Slack once per Workspace and Axon keeps them in sync
 | Plane member, Slack user | `Person` | matched across tools, see below |
 
 - Every connector Source carries `connector`, `external_id`, `url`, `created_at`, `updated_at` and `synced_at`. A deleted message or work item gets `deleted_at` and stays in the graph.
-- A Person keeps every tool identity in `external_ids` (`plane:<id>`, `slack:<id>`). A new identity joins an existing Person when one already has that id, then on exact email, then on a handle that matches exactly one Person. Otherwise Axon creates `p_<connector>_<id>`.
-- A Plane secret project or a private Slack channel is `restricted`: its Sources are `VISIBLE_TO` the Admin Role and the project or channel members. Everything else from these tools is `team`.
+- A Person keeps every tool identity in `external_ids` (`plane:<id>`, `slack:<id>`). A new identity joins an existing Person when one already has that id, or on exact email. Handles never match, because anyone can pick one. Otherwise Axon creates `p_<connector>_<id>`.
+- A Plane project that is not explicitly public, or a private Slack channel, is `restricted`: its Sources are `VISIBLE_TO` the Admin Role and the project or channel members. Everything else from these tools is `team`.
 - Sync: Plane webhooks (`/api/w/<slug>/plane/webhook`, HMAC in `X-Plane-Signature`), a Plane poll route (`/api/w/<slug>/plane/poll`) that fetches work items updated since the newest `updated_at`, and Slack Events (`/api/w/<slug>/slack/events`, v0 signature, five-minute replay window). Joining or leaving a private channel rewrites who can see its messages.
 
 ```cypher

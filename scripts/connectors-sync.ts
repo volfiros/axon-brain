@@ -9,7 +9,7 @@ import { writeBatch } from "@/lib/connectors/write";
 import { closeConnection, workspaceGraph } from "@/lib/graph/client";
 
 const FIXTURES = join(__dirname, "..", "demo", "connectors");
-const FIXTURE_PLANE_LINKS = { appUrl: "https://app.plane.so", workspaceSlug: "tallyroll" };
+const FIXTURE_PLANE_LINKS = { appUrl: "https://plane.example", workspaceSlug: "tallyroll" };
 
 function option(name: string): string | undefined {
   const index = process.argv.indexOf(name);

@@ -1,3 +1,5 @@
+import { timingSafeEqual } from "node:crypto";
+
 import { planeConnector } from "@/lib/connectors/plane";
 import { writeBatch } from "@/lib/connectors/write";
 import { workspaceGraph } from "@/lib/graph/client";
@@ -10,7 +12,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ workspac
   if (workspace !== process.env.CONNECTORS_WORKSPACE) return new Response(null, { status: 404 });
   // Vercel Cron sends CRON_SECRET as a bearer token; without it anyone could trigger a sync.
   const secret = process.env.CRON_SECRET;
-  if (!secret || req.headers.get("Authorization") !== `Bearer ${secret}`) {
+  const expected = Buffer.from(`Bearer ${secret}`);
+  const given = Buffer.from(req.headers.get("Authorization") ?? "");
+  if (!secret || expected.length !== given.length || !timingSafeEqual(expected, given)) {
     return new Response(null, { status: 401 });
   }
 

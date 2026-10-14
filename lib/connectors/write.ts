@@ -6,6 +6,7 @@ import type {
   Batch,
   CodeUnitInput,
   LinkInput,
+  LinkRel,
   NodeRef,
   PersonRef,
   ProjectInput,
@@ -17,6 +18,7 @@ type Row = Params[string];
 
 // Labels and relationship types cannot be query parameters, so they are checked before being spliced in.
 const LABEL = /^[A-Z][A-Za-z]*$/;
+const LINK_RELS = new Set<LinkRel>(["AUTHORED", "OWNS", "PART_OF", "TOUCHES"]);
 
 export function sourceId(connector: string, externalId: string): string {
   return `${connector}:${externalId}`;
@@ -79,13 +81,7 @@ async function resolvePerson(graph: AxonGraph, ref: PersonRef): Promise<string> 
     );
     id = byEmail[0]?.id;
   }
-  if (!id && ref.handle) {
-    const byHandle = await graph.query<{ id: string }>(
-      "MATCH (p:Person {handle: $handle}) RETURN p.id AS id LIMIT 2",
-      { handle: ref.handle },
-    );
-    if (byHandle.length === 1) id = byHandle[0].id;
-  }
+  // Handles are user-chosen and not unique across tools, so matching on one could hand a stranger someone's access.
   id ??= `p_${ref.connector}_${ref.external_id}`.replace(/[^A-Za-z0-9_]/g, "_");
   await graph.query(
     `MERGE (p:Person {id: $id})
@@ -262,6 +258,7 @@ function resolveRef(ref: NodeRef, people: Map<string, string>): { label: string;
 async function writeLinks(graph: AxonGraph, links: LinkInput[], people: Map<string, string>) {
   const groups = new Map<string, Row[]>();
   for (const link of links) {
+    if (!LINK_RELS.has(link.rel)) throw new Error(`Invalid link type: ${link.rel}`);
     const from = resolveRef(link.from, people);
     const to = resolveRef(link.to, people);
     if (!from || !to) throw new Error(`Link ${link.rel} refers to a Person missing from batch.people`);

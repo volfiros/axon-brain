@@ -46,7 +46,7 @@ export type PlaneLinks = { appUrl: string; workspaceSlug: string };
 
 type PlaneBatch = Required<Batch>;
 
-const SECRET_NETWORK = 0;
+const PUBLIC_NETWORK = 2;
 
 function newBatch(): PlaneBatch {
   return { sources: [], people: [], projects: [], codeUnits: [], links: [] };
@@ -87,8 +87,9 @@ export function memberToPerson(member: PlaneMember): PersonRef {
   };
 }
 
+// Anything not explicitly public is treated as secret, so a payload missing `network` cannot widen access.
 export function isSecret(project: PlaneProject): boolean {
-  return project.network === SECRET_NETWORK;
+  return project.network !== PUBLIC_NETWORK;
 }
 
 export function scopeOf(project: PlaneProject, visibleTo?: PersonRef[]): ProjectScope {
