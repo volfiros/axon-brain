@@ -9,6 +9,7 @@
     "db:seed": "tsx --env-file-if-exists=.env scripts/db-seed.ts",
     "connectors:sync": "tsx --env-file-if-exists=.env scripts/connectors-sync.ts",
     "connectors:replay": "tsx --env-file-if-exists=.env scripts/connectors-replay.ts",
+    "github:backfill": "tsx --env-file-if-exists=.env scripts/github-backfill.ts",
     "prepare": "husky"
   },
   "devDependencies": {
