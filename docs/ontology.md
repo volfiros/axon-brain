@@ -61,7 +61,9 @@ A context note (something worth keeping that is not a decision, constraint or as
 
 ```
 (WorkItem)-[:PART_OF]->(Project)
-(WorkItem)-[:TOUCHES]->(CodeUnit)
+(WorkItem | PR | Commit | Message)-[:TOUCHES]->(CodeUnit)
+(CodeUnit {kind: 'file'})-[:PART_OF]->(CodeUnit {kind: 'repository'})
+(Message)-[:PART_OF]->(PR | Message | WorkItem)
 (Feedback)-[:FROM]->(ExternalParty)
 (Feedback)-[:REQUESTS | REPORTS]->(Topic | Process)
 (WorkItem)-[:RESOLVES]->(Feedback)
@@ -138,9 +140,11 @@ The shared `<prefix>_accounts` graph holds sign-in identity and the index of Wor
 ```
 (Account)-[:JOINED {at}]->(Workspace)
 (Invite)-[:FOR]->(Workspace)
+(Connector)-[:FOR]->(Workspace)
 ```
 
 - `Workspace {id, slug, name, created_at}`: `slug` is stable and names the Workspace graph and its `/w/<slug>/mcp` address.
+- `Connector {id: 'github:<installation_id>', provider: 'github', installation_id, repo, status, synced_at}`: links a GitHub App installation to the Workspace whose graph its webhooks write to. `status` is `syncing`, `synced`, `error` or `disconnected`.
 - `Invite {code, created_at, expires_at}`: one live invite per Workspace, valid for 7 days. Joining through it adds a Person with the Guest Role.
 - `Account {id, name, email, username, ...}` and the other sign-in nodes are written by Better Auth through the FalkorDB adapter (`lib/auth/falkordb-adapter.ts`). Each Better Auth model is one label with flat properties, linked by id properties rather than edges: `Credential` (password hash), `Session`, `Verification`, `Jwks`, and the OAuth provider's `OauthClient`, `OauthAccessToken`, `OauthRefreshToken`, `OauthConsent` and `OauthResource`. Dates are ISO strings.
 - Each Workspace registers an `OauthResource` with `identifier` set to its MCP address. Access tokens carry that address as their audience, so a token works for one Workspace only (ADR 0004).
@@ -420,6 +424,31 @@ MATCH (p:Person)
 WHERE any(k IN p.external_ids WHERE k STARTS WITH 'plane:')
   AND any(k IN p.external_ids WHERE k STARTS WITH 'slack:')
 RETURN p.name, p.external_ids
+```
+
+## GitHub
+
+An Admin installs the Axon GitHub App on the Workspace's repositories from `/w/<slug>/connectors`. GitHub uses the same shared writer as Plane and Slack.
+
+| From | Node | Edges |
+| --- | --- | --- |
+| Pull request | `(:Source:PR)`, id `github:<owner>/<repo>/pull/<number>` | author `AUTHORED`, `TOUCHES` each changed file |
+| Review, PR comment, review comment | `(:Source:Message)`, id `github:<owner>/<repo>/review/<id>`, `/comment/<id>` or `/review-comment/<id>` | `PART_OF` its PR, author `AUTHORED`, a review comment `TOUCHES` its file |
+| Default-branch commit | `(:Source:Commit)`, id `github:<owner>/<repo>/commit/<sha>`, `extraction = 'skipped'` | author `AUTHORED`, `TOUCHES` each changed file |
+| README.md, `docs/**/*.md` except `docs/archive/`, ADRs | `(:Source:Doc)`, id `github:<owner>/<repo>/doc/<path>` | |
+| Changed file | `CodeUnit {kind: 'file', path, repo}`, id `cu:<owner>/<repo>:<path>` | `PART_OF` the repository `CodeUnit {kind: 'repository', path: '/'}` |
+| CODEOWNERS `@user` rule | `Person` | `OWNS {via: 'CODEOWNERS'}` every file the rule matches |
+| GitHub user | `Person`, `external_ids` `github:<user id>`, `handle` = login | bots are skipped |
+
+- A public repository gives `public` Sources and a private one `team`.
+- `WORKED_ON {count, last_at}` is recomputed by the shared writer from `AUTHORED` and `TOUCHES`: how many of a Person's Sources touched a CodeUnit, and when last. Plane and Slack get the same edge when their Sources touch code.
+- CODEOWNERS ownership is deleted and rewritten each time the file changes. Team and email owners are skipped because they have no GitHub user to match.
+- Sync: the webhook (`/api/webhooks/github`, HMAC in `X-Hub-Signature-256`) answers 202 and writes after the response. A push to the default branch adds its commits and re-reads changed docs and CODEOWNERS, and a removed doc gets `deleted_at`. The install callback (`/api/connectors/github/callback`) needs a signed `state` naming the Workspace and a signed-in Admin, then backfills. `npm run github:backfill -- <slug> <installation id>` does the same from a shell.
+
+```cypher
+MATCH (p:Person)-[w:WORKED_ON]->(c:CodeUnit {path: $path})
+RETURN p.name, w.count, w.last_at
+ORDER BY w.count DESC
 ```
 
 ## Session capture
