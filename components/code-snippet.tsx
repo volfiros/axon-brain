@@ -26,7 +26,7 @@ export function CodeSnippet({ code, label }: { code: string; label?: string }) {
       >
         {copied ? <CheckIcon /> : <CopyIcon />}
       </Button>
-      <pre className="overflow-x-auto p-4 pr-14 font-mono text-sm">
+      <pre className="p-4 pr-14 font-mono text-sm break-all whitespace-pre-wrap">
         <code>{code}</code>
       </pre>
     </div>

@@ -30,7 +30,7 @@ export default async function PeoplePage({
         <div className="flex-1">
           <FormField id="topic" label="Who knows about" defaultValue={topic} placeholder="refunds" autoComplete="off" />
         </div>
-        <Button type="submit" size="lg" shape="pill">
+        <Button type="submit" variant="brand" size="lg" shape="pill">
           <SearchIcon />
           Search
         </Button>

@@ -204,7 +204,7 @@
   --ease-aggressive: cubic-bezier(0, 1.02, 0.27, 0.97);
 }
 
-/* Paints the surface color outside a rounded window, so page content scrolls inside a framed viewport. */
+/* Paints the header color outside a rounded window, so page content scrolls inside a framed viewport. */
 @utility app-frame {
-  box-shadow: 0 0 0 100vmax var(--surface);
+  box-shadow: 0 0 0 100vmax var(--primary);
 }

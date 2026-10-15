@@ -24,7 +24,7 @@ export function NameForm({ name }: { name: string }) {
           <FormField id="name" label="Name" defaultValue={name} autoComplete="name" maxLength={80} required />
           <FormError message={state.error} />
           {state.saved && <p className="text-secondary-foreground text-sm font-light">Name saved.</p>}
-          <Button type="submit" size="lg" shape="pill" disabled={pending}>
+          <Button type="submit" variant="brand" size="lg" shape="pill" disabled={pending}>
             {pending ? "Saving" : "Save name"}
           </Button>
         </form>
@@ -94,7 +94,7 @@ export function PasswordForm() {
           </div>
           <FormError message={state.error} />
           {state.saved && <p className="text-secondary-foreground text-sm font-light">Password changed.</p>}
-          <Button type="submit" size="lg" shape="pill" disabled={pending}>
+          <Button type="submit" variant="brand" size="lg" shape="pill" disabled={pending}>
             {pending ? "Changing" : "Change password"}
           </Button>
         </form>

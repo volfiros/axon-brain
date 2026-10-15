@@ -9,7 +9,7 @@ export function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
   return (
     <Button
-      variant="tab"
+      variant="secondaryTab"
       size="icon"
       shape="pill"
       aria-label="Switch theme"
