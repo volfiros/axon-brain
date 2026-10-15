@@ -289,7 +289,19 @@ Reasons are filtered too: `OPTIONAL MATCH (d)-[:BECAUSE_OF]->(r) WHERE r:Feedbac
 
 ### Who knows
 
-One `UNION ALL` query returns one row per signal, summed per person. Points: owns the topic, file or process 5; made a current decision on it 3 (a superseded one 1); approved one 2; wrote a source behind one 2; 0.5 per recorded change (`WORKED_ON.count`, directly or through a WorkItem that `TOUCHES` it). Only decisions and sources visible to the caller score.
+One `UNION ALL` query returns one row per signal, summed per person. Points: owns the topic, file or process 5; made a current decision on it 3 (a superseded one 1); approved one 2; wrote a source behind one 2; 0.5 per recorded change (`WORKED_ON.count`, directly or through a WorkItem that `TOUCHES` it). Only decisions and sources visible to the caller score. A matched node or WorkItem that has `VISIBLE_TO` edges (a Project or Plane work item) must be visible to the caller too; nodes without any (CodeUnit, Process, Topic) always count.
+
+Each row also carries a `kind` (`owns`, `decisions`, `authored`, `workedOn`) so the People view can split the score. The query and the summing live in `rankPeople` (`lib/brain/people.ts`), which both the `who_knows` tool and the People page call.
+
+```cypher
+-- shown(x): NOT (x)-[:VISIBLE_TO]->() OR <visible(x)>
+MATCH (u:Person {id: $personId})-[:HAS_ROLE]->(role:Role)
+MATCH (x) WHERE (x:Topic OR x:CodeUnit OR x:Process OR x:Project)
+  AND any(w IN $stems WHERE toLower(x.name) CONTAINS w OR toLower(coalesce(x.path, '')) CONTAINS w)
+  AND <shown(x)>
+MATCH (p:Person)-[w:WORKED_ON]->(wi:WorkItem)-[:TOUCHES]->(x) WHERE <shown(wi)>
+RETURN p.name, 'workedOn' AS kind, 'worked on "' + wi.title + '"' AS signal, w.count * 0.5 AS points
+```
 
 ```cypher
 MATCH (u:Person {id: $personId})-[:HAS_ROLE]->(role:Role)
@@ -301,6 +313,26 @@ WITH DISTINCT p, d
 RETURN p.name, 'made "' + d.title + '"' AS signal, CASE d.status WHEN 'superseded' THEN 1.0 ELSE 3.0 END AS points
 UNION ALL
 ...
+```
+
+### People view
+
+`/w/<slug>/people` lists workspace members, plus imported people the caller can see something for, with what they own (`OWNS`), what they changed most (`WORKED_ON`, and the CodeUnits a WorkItem they worked on `TOUCHES`) and the decisions they made. Owned and worked-on items pass the same `shown(x)` check as who_knows; decisions pass `visible(d)` and skip dismissed ones. Hidden items are not counted. A topic search on the same page calls `rankPeople` and shows each person's score split by `kind`.
+
+```cypher
+MATCH (u:Person {id: $personId})-[:HAS_ROLE]->(role:Role)
+MATCH (p:Person)-[:OWNS]->(x)
+WHERE x.deleted_at IS NULL AND <shown(x)>
+RETURN DISTINCT p.id, x.id, labels(x), coalesce(x.path, x.title, x.name) AS name, x.url
+```
+
+```cypher
+MATCH (u:Person {id: $personId})-[:HAS_ROLE]->(role:Role)
+MATCH (d:Decision)-[:MADE_BY]->(p:Person)
+WHERE d.status <> 'dismissed' AND <visible(d)>
+OPTIONAL MATCH (d)-[:DERIVED_FROM]->(:Excerpt)-[:IN]->(s:Source)
+WHERE s.url IS NOT NULL AND <visible(s)>
+RETURN p.id, d.id, d.title, d.status, collect(s.url) AS urls
 ```
 
 ### Impact
