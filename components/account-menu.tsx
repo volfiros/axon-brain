@@ -38,9 +38,9 @@ export function AccountMenu({ account }: { account: AccountSummary }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="tab" size="icon" shape="pill" aria-label="Account menu">
+        <Button variant="secondaryTab" size="icon" shape="pill" aria-label="Account menu">
           <Avatar className="size-8">
-            <AvatarFallback className="bg-surface-active text-xs font-light">{initials(account.name)}</AvatarFallback>
+            <AvatarFallback className="bg-secondary text-secondary-foreground text-xs font-light">{initials(account.name)}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>

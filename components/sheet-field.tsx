@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 export function SheetField({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="bg-surface text-surface-foreground flex flex-col gap-2 rounded-2xl p-4 text-sm">
+    <div className="bg-surface text-surface-foreground flex flex-col gap-1.5 rounded-xl p-3 text-sm">
       <span className="text-secondary-foreground text-xs font-light">{label}</span>
       {children}
     </div>

@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { ConfirmButton } from "@/components/confirm-button";
 import { RoleBadge } from "@/components/role-badge";
+import { SheetField } from "@/components/sheet-field";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { Member } from "@/lib/workspaces";
@@ -64,18 +65,19 @@ export function MembersTable({
           {selected && (
             <>
               <SheetHeader>
-                <SheetTitle className="text-2xl font-light">{selected.name}</SheetTitle>
-                <SheetDescription className="text-secondary-foreground font-light">
+                <SheetTitle>{selected.name}</SheetTitle>
+                <SheetDescription>
                   {selected.handle ?? "No username"}
                 </SheetDescription>
               </SheetHeader>
-              <div className="bg-surface text-surface-foreground mx-4 flex flex-col gap-4 rounded-2xl p-4">
-                <span className="text-secondary-foreground text-xs font-light">Role</span>
-                {isAdmin ? (
-                  <RoleSelect key={selected.personId} slug={slug} personId={selected.personId} role={selected.role} />
-                ) : (
-                  <RoleBadge role={selected.role} />
-                )}
+              <div className="px-4">
+                <SheetField label="Role">
+                  {isAdmin ? (
+                    <RoleSelect key={selected.personId} slug={slug} personId={selected.personId} role={selected.role} />
+                  ) : (
+                    <RoleBadge role={selected.role} />
+                  )}
+                </SheetField>
               </div>
               {isAdmin && selected.personId !== selfId && (
                 <div className="px-4">

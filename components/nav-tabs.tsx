@@ -10,16 +10,16 @@ export type NavItem = { href: string; label: string };
 export function NavTabs({ items }: { items: NavItem[] }) {
   const pathname = usePathname();
   return (
-    <nav className="flex min-w-0 items-center gap-0.5 overflow-x-auto md:gap-2">
+    <nav className="flex w-full min-w-0 items-center justify-between overflow-x-auto md:w-auto md:justify-start md:gap-2">
       {items.map((item) => {
         const active = pathname === item.href;
         return (
           <Button
             key={item.href}
-            variant={active ? "tabActive" : "tab"}
+            variant={active ? "tertiary" : "secondaryTab"}
             size="lg"
             shape="pill"
-            className="px-4 md:px-6"
+            className="h-9 px-2 text-xs md:h-10 md:px-6 md:text-sm"
             asChild
           >
             <Link href={item.href} aria-current={active ? "page" : undefined}>

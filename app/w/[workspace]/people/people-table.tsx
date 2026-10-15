@@ -16,7 +16,7 @@ function usePersonSheet(people: PersonView[]) {
   const selected = people.find((p) => p.id === selectedId);
   const sheet = (
     <Sheet open={open && selected !== undefined} onOpenChange={setOpen}>
-      <SheetContent className="overflow-y-auto sm:max-w-lg">{selected && <PersonDetail person={selected} />}</SheetContent>
+      <SheetContent className="sm:max-w-lg">{selected && <PersonDetail person={selected} />}</SheetContent>
     </Sheet>
   );
   return {
@@ -38,9 +38,9 @@ export function PeopleTable({ people }: { people: PersonView[] }) {
           <TableRow>
             <TableHead>Person</TableHead>
             <TableHead>Role</TableHead>
-            <TableHead>Owns</TableHead>
-            <TableHead>Worked on most</TableHead>
-            <TableHead>Decisions</TableHead>
+            <TableHead hideOnMobile>Owns</TableHead>
+            <TableHead hideOnMobile>Worked on most</TableHead>
+            <TableHead hideOnMobile>Decisions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -52,13 +52,15 @@ export function PeopleTable({ people }: { people: PersonView[] }) {
               <TableCell>
                 <PersonRole person={person} />
               </TableCell>
-              <TableCell className="max-w-56 text-wrap">
+              <TableCell hideOnMobile className="max-w-56 text-wrap">
                 <Summary names={person.owns.map((i) => i.name)} />
               </TableCell>
-              <TableCell className="max-w-56 text-wrap">
+              <TableCell hideOnMobile className="max-w-56 text-wrap">
                 <Summary names={person.workedOn.map((i) => i.name)} />
               </TableCell>
-              <TableCell className="text-secondary-foreground">{person.decisions.length}</TableCell>
+              <TableCell hideOnMobile className="text-secondary-foreground">
+                {person.decisions.length}
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -78,10 +80,10 @@ export function RankedTable({ ranked, people }: { ranked: RankedPerson[]; people
           <TableRow>
             <TableHead>Person</TableHead>
             <TableHead>Score</TableHead>
-            <TableHead>Owns</TableHead>
-            <TableHead>Decisions</TableHead>
-            <TableHead>Authored</TableHead>
-            <TableHead>Worked on</TableHead>
+            <TableHead hideOnMobile>Owns</TableHead>
+            <TableHead hideOnMobile>Decisions</TableHead>
+            <TableHead hideOnMobile>Authored</TableHead>
+            <TableHead hideOnMobile>Worked on</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -116,8 +118,8 @@ function PersonDetail({ person }: { person: PersonView }) {
     <>
       <SheetHeader>
         <PersonRole person={person} />
-        <SheetTitle className="text-2xl font-light">{person.name}</SheetTitle>
-        <SheetDescription className="text-secondary-foreground font-light">{person.title ?? "No title"}</SheetDescription>
+        <SheetTitle>{person.name}</SheetTitle>
+        <SheetDescription>{person.title ?? "No title"}</SheetDescription>
       </SheetHeader>
       <div className="flex flex-col gap-3 px-4 pb-6">
         <SheetField label="Owns">
@@ -186,5 +188,9 @@ function Summary({ names }: { names: string[] }) {
 }
 
 function Points({ value }: { value: number }) {
-  return <TableCell className={value === 0 ? "text-muted-foreground" : undefined}>{value}</TableCell>;
+  return (
+    <TableCell hideOnMobile className={value === 0 ? "text-muted-foreground" : undefined}>
+      {value}
+    </TableCell>
+  );
 }

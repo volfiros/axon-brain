@@ -12,10 +12,10 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed px-6 py-12 text-center">
+    <div className="bg-surface text-surface-foreground flex flex-col items-center gap-2 rounded-xl px-4 py-6 text-center">
       {icon && <div className="text-secondary-foreground [&_svg]:size-5">{icon}</div>}
       <div className="flex flex-col gap-1">
-        <h2 className="text-lg font-light">{title}</h2>
+        <h2 className="font-light">{title}</h2>
         {description && <p className="text-secondary-foreground max-w-sm text-sm font-light">{description}</p>}
       </div>
       {action}

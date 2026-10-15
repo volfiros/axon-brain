@@ -32,11 +32,11 @@ export default async function ConnectorsPage({ params }: { params: Promise<{ wor
           {connection && <CardDescription>{connection.repo}</CardDescription>}
         </CardHeader>
         <CardContent className="flex flex-wrap items-center justify-between gap-4">
-          <p className="text-muted-foreground text-sm">
+          <p className="text-secondary-foreground text-sm font-light">
             {connection?.synced_at ? `Last synced ${connection.synced_at.replace("T", " ")} UTC` : "Not synced yet"}
           </p>
           {member.role === "Admin" && (
-            <Button variant={connection ? "outline" : "default"} size="sm" asChild>
+            <Button variant={connection ? "secondary" : "brand"} shape="pill" asChild>
               <a href={installUrl(slug)}>{connection ? "Manage repositories" : "Connect GitHub"}</a>
             </Button>
           )}

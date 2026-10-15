@@ -30,7 +30,7 @@ export default async function OnboardingPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Workspace</TableHead>
-              <TableHead>Role</TableHead>
+              <TableHead hideOnMobile>Role</TableHead>
               <TableHead className="text-right">Open</TableHead>
             </TableRow>
           </TableHeader>
@@ -38,7 +38,7 @@ export default async function OnboardingPage() {
             {memberships.map((membership) => (
               <TableRow key={membership.id}>
                 <TableCell>{membership.name}</TableCell>
-                <TableCell>
+                <TableCell hideOnMobile>
                   <RoleBadge role={membership.role} />
                 </TableCell>
                 <TableCell>
@@ -46,10 +46,10 @@ export default async function OnboardingPage() {
                     <Button variant="tab" size="sm" shape="pill" asChild>
                       <Link href={`/w/${membership.slug}`}>Home</Link>
                     </Button>
-                    <Button variant="tab" size="sm" shape="pill" asChild>
+                    <Button variant="tab" size="sm" shape="pill" className="max-md:hidden" asChild>
                       <Link href={`/w/${membership.slug}/setup`}>Setup</Link>
                     </Button>
-                    <Button variant="tab" size="sm" shape="pill" asChild>
+                    <Button variant="tab" size="sm" shape="pill" className="max-md:hidden" asChild>
                       <Link href={`/w/${membership.slug}/members`}>Members</Link>
                     </Button>
                   </div>

@@ -54,7 +54,7 @@ export function SignInForm() {
         <FormField id="identifier" label="Username or email" autoComplete="username" required />
         <FormField id="password" label="Password" type="password" autoComplete="current-password" required />
         <FormError message={error} />
-        <Button type="submit" size="lg" shape="pill" disabled={pending}>
+        <Button type="submit" variant="brand" size="lg" shape="pill" disabled={pending}>
           {pending ? "Signing in" : "Sign in"}
         </Button>
       </form>

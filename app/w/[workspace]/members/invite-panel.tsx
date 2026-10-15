@@ -23,7 +23,7 @@ export function InvitePanel({ slug, link }: { slug: string; link: string | null 
     <div className="flex flex-col gap-4">
       {link && <CodeSnippet code={link} label="invite link" />}
       <div className="flex flex-wrap gap-2">
-        <Button variant="outline" shape="pill" onClick={regenerate} disabled={pending}>
+        <Button variant="secondary" shape="pill" onClick={regenerate} disabled={pending}>
           {link ? "Replace invite link" : "Create invite link"}
         </Button>
         {link && (

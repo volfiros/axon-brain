@@ -18,9 +18,9 @@ export function WorkspaceSwitcher({ current, workspaces }: { current: WorkspaceL
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="tab" size="lg" shape="pill" className="max-w-56 px-4">
+        <Button variant="secondaryTab" size="lg" shape="pill" className="max-w-56 px-4">
           <span className="truncate">{current.name}</span>
-          <ChevronsUpDownIcon className="text-secondary-foreground" />
+          <ChevronsUpDownIcon className="opacity-60" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-60">

@@ -20,7 +20,7 @@ export function ConfirmButton({
   title,
   description,
   confirmLabel,
-  variant = "outline",
+  variant = "secondary",
   onConfirm,
 }: {
   label: string;

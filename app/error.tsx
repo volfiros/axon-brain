@@ -14,7 +14,7 @@ export default function ErrorPage({ error, reset }: { error: Error & { digest?: 
         title="This page could not load"
         description={error.digest ? `Something went wrong on our side. Error ${error.digest}.` : "Something went wrong."}
         action={
-          <Button variant="outline" shape="pill" onClick={reset}>
+          <Button variant="secondary" shape="pill" onClick={reset}>
             Try again
           </Button>
         }

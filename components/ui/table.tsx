@@ -11,7 +11,9 @@ const tableVariants = cva("w-full caption-bottom text-sm", {
         "border-separate border-spacing-y-3 text-surface-foreground",
         "[&_tr]:bg-surface [&_tbody_tr:hover]:bg-surface-hover",
         "[&_th]:text-secondary-foreground [&_th]:text-xs [&_th]:font-light",
-        "[&_td]:py-3 [&_tr>*:first-child]:rounded-l-lg [&_tr>*:first-child]:pl-4 [&_tr>*:last-child]:rounded-r-lg [&_tr>*:last-child]:pr-4",
+        "[&_td]:py-3 [&_tr>*:first-child]:rounded-l-lg [&_tr>*:first-child]:pl-4 md:[&_tr>*:last-child]:rounded-r-lg md:[&_tr>*:last-child]:pr-4",
+        // Below md, cells marked hideOnMobile are gone, so the last visible cell carries the right edge.
+        "max-md:[&_tr>*:not([data-hide-mobile]):not(:has(~:not([data-hide-mobile])))]:rounded-r-lg max-md:[&_tr>*:not([data-hide-mobile]):not(:has(~:not([data-hide-mobile])))]:pr-4",
       ],
     },
   },
@@ -50,11 +52,15 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
   );
 }
 
-function TableHead({ className, ...props }: React.ComponentProps<"th">) {
+type MobileProps = { hideOnMobile?: boolean };
+
+function TableHead({ className, hideOnMobile, ...props }: React.ComponentProps<"th"> & MobileProps) {
   return (
     <th
       data-slot="table-head"
+      data-hide-mobile={hideOnMobile || undefined}
       className={cn(
+        hideOnMobile && "max-md:hidden",
         "text-muted-foreground h-10 px-2 text-left align-middle font-medium [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
         className,
       )}
@@ -63,11 +69,13 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
   );
 }
 
-function TableCell({ className, ...props }: React.ComponentProps<"td">) {
+function TableCell({ className, hideOnMobile, ...props }: React.ComponentProps<"td"> & MobileProps) {
   return (
     <td
       data-slot="table-cell"
+      data-hide-mobile={hideOnMobile || undefined}
       className={cn(
+        hideOnMobile && "max-md:hidden",
         "text-nowrap p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
         className,
       )}

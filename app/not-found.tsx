@@ -13,7 +13,7 @@ export default function NotFound() {
         title="Page not found"
         description="This page does not exist, or you are not a member of this workspace."
         action={
-          <Button variant="outline" shape="pill" asChild>
+          <Button variant="secondary" shape="pill" asChild>
             <Link href="/onboarding">Back to workspaces</Link>
           </Button>
         }

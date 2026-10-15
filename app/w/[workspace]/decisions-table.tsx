@@ -23,8 +23,8 @@ export function DecisionsTable({ decisions, slug, canWrite }: { decisions: Decis
           <TableRow>
             <TableHead>Decision</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead>Made by</TableHead>
-            <TableHead>Date</TableHead>
+            <TableHead hideOnMobile>Made by</TableHead>
+            <TableHead hideOnMobile>Date</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -43,20 +43,24 @@ export function DecisionsTable({ decisions, slug, canWrite }: { decisions: Decis
                 </button>
               </TableCell>
               <TableCell>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <DecisionStatusBadge status={decision.status} />
                   {decision.restricted && <DecisionStatusBadge status="restricted" />}
                   {decision.sourceChanges.length > 0 && <DecisionStatusBadge status="changed" />}
                 </div>
               </TableCell>
-              <TableCell className="text-secondary-foreground">{decision.maker ?? "Unknown"}</TableCell>
-              <TableCell className="text-secondary-foreground">{decision.date}</TableCell>
+              <TableCell hideOnMobile className="text-secondary-foreground">
+                {decision.maker ?? "Unknown"}
+              </TableCell>
+              <TableCell hideOnMobile className="text-secondary-foreground">
+                {decision.date}
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
       <Sheet open={open && selected !== undefined} onOpenChange={setOpen}>
-        <SheetContent className="overflow-y-auto sm:max-w-lg">
+        <SheetContent className="sm:max-w-lg">
           {selected && <DecisionDetail decision={selected} slug={slug} canWrite={canWrite} />}
         </SheetContent>
       </Sheet>
@@ -77,13 +81,13 @@ function DecisionDetail({ decision, slug, canWrite }: { decision: DecisionView; 
   return (
     <>
       <SheetHeader>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <DecisionStatusBadge status={decision.status} />
           {decision.restricted && <DecisionStatusBadge status="restricted" />}
           {decision.sourceChanges.length > 0 && <DecisionStatusBadge status="changed" />}
         </div>
-        <SheetTitle className="text-2xl font-light">{decision.title}</SheetTitle>
-        <SheetDescription className="text-secondary-foreground font-light">{decision.statement}</SheetDescription>
+        <SheetTitle>{decision.title}</SheetTitle>
+        <SheetDescription>{decision.statement}</SheetDescription>
       </SheetHeader>
       <div className="flex flex-col gap-3 px-4 pb-6">
         <Field label="Because">
