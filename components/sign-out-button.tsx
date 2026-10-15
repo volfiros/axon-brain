@@ -9,8 +9,9 @@ export function SignOutButton() {
   const router = useRouter();
   return (
     <Button
-      variant="ghost"
-      size="sm"
+      variant="tab"
+      size="lg"
+      shape="pill"
       onClick={async () => {
         await authClient.signOut();
         router.push("/sign-in");

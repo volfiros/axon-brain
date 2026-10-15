@@ -4,7 +4,7 @@ import { SignUpForm } from "./sign-up-form";
 
 export default function SignUpPage() {
   return (
-    <PageShell>
+    <PageShell width="narrow">
       <SignUpForm />
     </PageShell>
   );

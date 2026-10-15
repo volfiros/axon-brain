@@ -2,11 +2,12 @@ import { CodeSnippet } from "@/components/code-snippet";
 import { PageHeader } from "@/components/page-header";
 import { PageShell } from "@/components/page-shell";
 import { RoleBadge } from "@/components/role-badge";
+import { SignOutButton } from "@/components/sign-out-button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireMember } from "@/lib/auth/session";
 import { workspaceResource } from "@/lib/workspaces";
 
-import { WorkspaceNav } from "../workspace-nav";
+import { workspaceNav } from "../workspace-nav";
 
 export default async function SetupPage({ params }: { params: Promise<{ workspace: string }> }) {
   const { workspace: slug } = await params;
@@ -14,7 +15,7 @@ export default async function SetupPage({ params }: { params: Promise<{ workspac
   const mcpJson = JSON.stringify({ mcpServers: { axon: { type: "http", url: workspaceResource(slug) } } }, null, 2);
 
   return (
-    <PageShell actions={<WorkspaceNav slug={slug} />}>
+    <PageShell nav={workspaceNav(slug)} actions={<SignOutButton />}>
       <PageHeader title={workspace.name} actions={<RoleBadge role={member.role} />} />
       <Card>
         <CardHeader>

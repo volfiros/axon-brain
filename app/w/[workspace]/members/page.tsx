@@ -1,15 +1,14 @@
 import { PageHeader } from "@/components/page-header";
 import { PageShell } from "@/components/page-shell";
-import { RoleBadge } from "@/components/role-badge";
+import { SignOutButton } from "@/components/sign-out-button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { appUrl } from "@/lib/auth";
 import { requireMember } from "@/lib/auth/session";
 import { currentInvite, listMembers } from "@/lib/workspaces";
 
-import { WorkspaceNav } from "../workspace-nav";
+import { workspaceNav } from "../workspace-nav";
 import { InvitePanel } from "./invite-panel";
-import { RoleSelect } from "./role-select";
+import { MembersTable } from "./members-table";
 
 export default async function MembersPage({ params }: { params: Promise<{ workspace: string }> }) {
   const { workspace: slug } = await params;
@@ -19,32 +18,9 @@ export default async function MembersPage({ params }: { params: Promise<{ worksp
   const invite = isAdmin ? await currentInvite(slug) : null;
 
   return (
-    <PageShell actions={<WorkspaceNav slug={slug} />}>
+    <PageShell nav={workspaceNav(slug)} actions={<SignOutButton />}>
       <PageHeader title="Members" description={workspace.name} />
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Username</TableHead>
-            <TableHead>Role</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {members.map((person) => (
-            <TableRow key={person.personId}>
-              <TableCell>{person.name}</TableCell>
-              <TableCell className="text-muted-foreground">{person.handle}</TableCell>
-              <TableCell>
-                {isAdmin ? (
-                  <RoleSelect slug={slug} personId={person.personId} role={person.role} />
-                ) : (
-                  <RoleBadge role={person.role} />
-                )}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      <MembersTable slug={slug} members={members} isAdmin={isAdmin} />
       {isAdmin && (
         <Card>
           <CardHeader>

@@ -15,10 +15,11 @@ export function CodeSnippet({ code, label }: { code: string; label?: string }) {
   }
 
   return (
-    <div className="bg-muted relative rounded-md border">
+    <div className="bg-surface text-surface-foreground relative rounded-2xl">
       <Button
-        variant="ghost"
+        variant="tab"
         size="icon"
+        shape="pill"
         className="absolute top-2 right-2"
         onClick={copy}
         aria-label={copied ? "Copied" : `Copy ${label ?? "code"}`}

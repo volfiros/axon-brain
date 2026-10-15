@@ -27,7 +27,7 @@ export default async function OnboardingPage() {
           description="Create one for your company, or join one with an invite code."
         />
       ) : (
-        <Table>
+        <Table variant="rows">
           <TableHeader>
             <TableRow>
               <TableHead>Workspace</TableHead>
@@ -42,13 +42,15 @@ export default async function OnboardingPage() {
                 <TableCell>
                   <RoleBadge role={membership.role} />
                 </TableCell>
-                <TableCell className="flex justify-end gap-2">
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href={`/w/${membership.slug}/setup`}>Setup</Link>
-                  </Button>
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href={`/w/${membership.slug}/members`}>Members</Link>
-                  </Button>
+                <TableCell>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="tab" size="sm" shape="pill" asChild>
+                      <Link href={`/w/${membership.slug}/setup`}>Setup</Link>
+                    </Button>
+                    <Button variant="tab" size="sm" shape="pill" asChild>
+                      <Link href={`/w/${membership.slug}/members`}>Members</Link>
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}

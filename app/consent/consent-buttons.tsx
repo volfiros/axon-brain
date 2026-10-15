@@ -24,11 +24,11 @@ export function ConsentButtons({ allowAccept }: { allowAccept: boolean }) {
     <div className="flex flex-col gap-4">
       <FormError message={error} />
       <div className="flex justify-end gap-2">
-        <Button variant="outline" disabled={pending} onClick={() => answer(false)}>
+        <Button variant="outline" size="lg" shape="pill" disabled={pending} onClick={() => answer(false)}>
           Deny
         </Button>
         {allowAccept && (
-          <Button disabled={pending} onClick={() => answer(true)}>
+          <Button size="lg" shape="pill" disabled={pending} onClick={() => answer(true)}>
             Allow
           </Button>
         )}

@@ -13,7 +13,7 @@ export default function Home() {
       <PageHeader
         title="Home"
         actions={
-          <Button variant="outline" size="sm" asChild>
+          <Button variant="outline" shape="pill" asChild>
             <a href="/api/health">Check the graph connection</a>
           </Button>
         }
