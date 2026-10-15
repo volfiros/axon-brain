@@ -1,12 +1,11 @@
+import { ConfirmButton } from "@/components/confirm-button";
 import { PageHeader } from "@/components/page-header";
-import { PageShell } from "@/components/page-shell";
-import { SignOutButton } from "@/components/sign-out-button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { appUrl } from "@/lib/auth";
 import { requireMember } from "@/lib/auth/session";
 import { currentInvite, listMembers } from "@/lib/workspaces";
 
-import { workspaceNav } from "../workspace-nav";
+import { leaveWorkspaceAction } from "./actions";
 import { InvitePanel } from "./invite-panel";
 import { MembersTable } from "./members-table";
 
@@ -18,9 +17,9 @@ export default async function MembersPage({ params }: { params: Promise<{ worksp
   const invite = isAdmin ? await currentInvite(slug) : null;
 
   return (
-    <PageShell nav={workspaceNav(slug)} actions={<SignOutButton />}>
+    <>
       <PageHeader title="Members" description={workspace.name} />
-      <MembersTable slug={slug} members={members} isAdmin={isAdmin} />
+      <MembersTable slug={slug} members={members} isAdmin={isAdmin} selfId={member.personId} />
       {isAdmin && (
         <Card>
           <CardHeader>
@@ -34,6 +33,22 @@ export default async function MembersPage({ params }: { params: Promise<{ worksp
           </CardContent>
         </Card>
       )}
-    </PageShell>
+      <Card>
+        <CardHeader>
+          <CardTitle>Leave {workspace.name}</CardTitle>
+          <CardDescription>You lose access until an Admin invites you again. Your saved decisions stay.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ConfirmButton
+            label="Leave workspace"
+            title={`Leave ${workspace.name}?`}
+            description="You lose access to its brain and members right away."
+            confirmLabel="Leave"
+            variant="destructive"
+            onConfirm={leaveWorkspaceAction.bind(null, slug)}
+          />
+        </CardContent>
+      </Card>
+    </>
   );
 }

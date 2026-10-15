@@ -168,6 +168,31 @@ DELETE current
 CREATE (p)-[:HAS_ROLE]->(to)
 ```
 
+Removing a member or leaving runs the same guards in one query, then deletes the `JOINED` edge in the accounts graph. Only `HAS_ROLE` is deleted: the Person keeps its `account_id`, so `MADE_BY` and `AUTHORED` keep their history and a later rejoin finds the same Person as a Guest. Without a Role the Person fails every `FROM_CALLER` match, so MCP tokens stop working at once.
+
+```cypher
+MATCH (:Person {account_id: $adminAccountId})-[:HAS_ROLE]->(:Role {name: 'Admin'})
+MATCH (p:Person {id: $personId})-[current:HAS_ROLE]->(r:Role)
+OPTIONAL MATCH (other:Person)-[:HAS_ROLE]->(:Role {name: 'Admin'})
+WHERE other <> p
+WITH p, current, r, count(other) AS otherAdmins
+WHERE r.name <> 'Admin' OR otherAdmins > 0
+DELETE current
+```
+
+Leaving matches the caller's own Person by `account_id` instead of the Admin line. Revoking an invite deletes the `Invite` node after an Admin check in application code, because the Invite and the Role live in different graphs.
+
+The workspace home lists Decisions through the same `FROM_CALLER` and `visible(d)` filter as recall, then loads details with recall's detail query. It shows only visible rows and no workspace-wide hidden count; inside a decision, hidden reasons and sources get the same "restricted, ask <Admin>" note recall gives.
+
+```cypher
+MATCH (u:Person {id: $personId})-[:HAS_ROLE]->(role:Role)
+MATCH (d:Decision) WHERE d.status IN $statuses AND <visible(d)>
+OPTIONAL MATCH (d)-[:AFFECTS]->(x)
+WITH d, collect(DISTINCT coalesce(x.path, x.name)) AS affects
+RETURN d.id, d.sensitivity, affects
+ORDER BY coalesce(d.valid_from, d.recorded_at) DESC
+```
+
 ## Customization
 
 The workspace schema lives in the graph:

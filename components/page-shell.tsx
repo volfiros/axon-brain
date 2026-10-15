@@ -2,8 +2,10 @@ import { cva, type VariantProps } from "class-variance-authority";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { AccountMenu, type AccountSummary } from "@/components/account-menu";
 import { type NavItem, NavTabs } from "@/components/nav-tabs";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { type WorkspaceLink, WorkspaceSwitcher } from "@/components/workspace-switcher";
 
 const windowVariants = cva("flex flex-1 flex-col", {
   variants: {
@@ -27,12 +29,14 @@ const contentVariants = cva("mx-auto flex w-full flex-1 flex-col gap-8 px-2", {
 
 export function PageShell({
   nav,
-  actions,
+  account,
+  workspace,
   width,
   children,
 }: {
   nav?: NavItem[];
-  actions?: ReactNode;
+  account?: AccountSummary;
+  workspace?: { current: WorkspaceLink; all: WorkspaceLink[] };
   children: ReactNode;
 } & VariantProps<typeof contentVariants>) {
   return (
@@ -42,12 +46,10 @@ export function PageShell({
           <Link href="/" className="text-xl font-light tracking-tight">
             Axon
           </Link>
+          {workspace && <WorkspaceSwitcher current={workspace.current} workspaces={workspace.all} />}
           {nav && <NavTabs items={nav} />}
         </div>
-        <div className="flex items-center gap-2">
-          {actions}
-          <ThemeToggle />
-        </div>
+        <div className="flex items-center gap-2">{account ? <AccountMenu account={account} /> : <ThemeToggle />}</div>
       </header>
       <div aria-hidden className="app-frame pointer-events-none fixed inset-x-3 top-16 bottom-3 z-40 rounded-xl" />
       <main className={windowVariants({ width })}>

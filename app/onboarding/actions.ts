@@ -22,7 +22,7 @@ export async function createWorkspaceAction(_state: FormState, form: FormData): 
   } catch (err) {
     return { error: (err as Error).message };
   }
-  redirect(`/w/${slug}/setup`);
+  redirect(`/w/${slug}`);
 }
 
 export async function joinWorkspaceAction(_state: FormState, form: FormData): Promise<FormState> {
@@ -35,5 +35,5 @@ export async function joinWorkspaceAction(_state: FormState, form: FormData): Pr
   } catch (err) {
     return { error: (err as Error).message };
   }
-  redirect(`/w/${slug}/setup`);
+  redirect(`/w/${slug}`);
 }
