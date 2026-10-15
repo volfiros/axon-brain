@@ -3,7 +3,7 @@ import type { ComponentProps } from "react";
 
 import { Badge } from "@/components/ui/badge";
 
-export const DECISION_STATES = ["proposed", "accepted", "superseded", "restricted"] as const;
+export const DECISION_STATES = ["proposed", "accepted", "superseded", "restricted", "changed"] as const;
 
 export type DecisionState = (typeof DECISION_STATES)[number];
 
@@ -12,9 +12,10 @@ const STATE_BADGES: Record<DecisionState, { label: string; variant: ComponentPro
   accepted: { label: "Accepted", variant: "valid" },
   superseded: { label: "Superseded", variant: "muted" },
   restricted: { label: "Restricted", variant: "warning" },
+  changed: { label: "Source changed", variant: "warning" },
 };
 
-/** `restricted` is a sensitivity, not a status: render it next to the status badge when both apply. */
+/** `restricted` and `changed` are not statuses: render them next to the status badge when they apply. */
 export function DecisionStatusBadge({ status }: { status: DecisionState }) {
   const { label, variant } = STATE_BADGES[status];
   return (

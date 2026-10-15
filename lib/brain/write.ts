@@ -51,8 +51,6 @@ export type WriteOptions = {
   status?: "accepted" | "proposed";
   /** Person id for MADE_BY. Defaults to the caller; null writes no MADE_BY. */
   madeBy?: string | null;
-  /** content_hash of the Source text the item was extracted from. */
-  sourceHash?: string;
 };
 
 const LABELS = { decision: "Decision", constraint: "Constraint", assumption: "Assumption" } as const;
@@ -188,9 +186,9 @@ export async function writeItem(ctx: BrainContext, plan: ItemPlan, source: Sourc
   if (input.kind !== "note") {
     itemId = newId(input.kind === "decision" ? "dec" : input.kind === "constraint" ? "con" : "asm");
     await run(
-      `MATCH (ex:Excerpt {id: $excerptId})
+      `MATCH (ex:Excerpt {id: $excerptId})-[:IN]->(s:Source)
        CREATE (n:${LABELS[input.kind]} {id: $id, statement: $statement, sensitivity: $sensitivity, recorded_at: localdatetime(),
-               extracted_by: 'agent', confirmed_by: $confirmedBy})-[:DERIVED_FROM]->(ex)`,
+               extracted_by: 'agent', confirmed_by: $confirmedBy})-[:DERIVED_FROM {source_hash: s.content_hash}]->(ex)`,
       { excerptId, id: itemId, statement: input.statement, sensitivity, confirmedBy },
     );
     created.push(itemId);
@@ -200,13 +198,12 @@ export async function writeItem(ctx: BrainContext, plan: ItemPlan, source: Sourc
     await run(
       `MATCH (d:Decision {id: $id})-[:DERIVED_FROM]->(:Excerpt)-[:IN]->(s:Source)
        SET d.title = $title, d.status = $status, d.valid_from = coalesce(s.created_at, localdatetime()),
-           d.confidence = $confidence, d.source_hash = $sourceHash`,
+           d.confidence = $confidence`,
       {
         id: itemId,
         title: input.title ?? input.statement,
         status,
         confidence: status === "accepted" ? 1.0 : null,
-        sourceHash: options.sourceHash ?? null,
       },
     );
     const madeBy = options.madeBy === undefined ? ctx.caller.personId : options.madeBy;
@@ -219,9 +216,9 @@ export async function writeItem(ctx: BrainContext, plan: ItemPlan, source: Sourc
     ];
     for (const reason of newReasons) {
       await run(
-        `MATCH (d:Decision {id: $decisionId}), (ex:Excerpt {id: $excerptId})
+        `MATCH (d:Decision {id: $decisionId}), (ex:Excerpt {id: $excerptId})-[:IN]->(s:Source)
          CREATE (d)-[:BECAUSE_OF]->(c:${reason.label} {id: $id, statement: $statement, sensitivity: $sensitivity,
-                 recorded_at: localdatetime(), extracted_by: 'agent', confirmed_by: $confirmedBy})-[:DERIVED_FROM]->(ex)`,
+                 recorded_at: localdatetime(), extracted_by: 'agent', confirmed_by: $confirmedBy})-[:DERIVED_FROM {source_hash: s.content_hash}]->(ex)`,
         { decisionId: itemId, excerptId, id: reason.id, statement: reason.statement, sensitivity, confirmedBy },
       );
       created.push(reason.id);

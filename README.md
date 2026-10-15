@@ -84,6 +84,8 @@ Start the app on http://localhost:3000 and check http://localhost:3000/api/healt
 npm run dev
 ```
 
+Plane and Slack stay current through their webhooks: an edited or deleted message or work item updates its Source, and any accepted decision drawn from it is flagged for review. A scheduled catch-up poll can be enabled later with a Vercel cron on `/api/w/<workspace>/plane/poll`, authorized by `CRON_SECRET`.
+
 `npm run db:setup` creates any missing indexes on every workspace graph, or on one with `npm run db:setup -- <slug>`. New workspaces get their indexes when they are created, so this is only needed after the index list changes.
 
 ## Submission checklist

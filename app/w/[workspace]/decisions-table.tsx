@@ -2,13 +2,16 @@
 
 import { useState } from "react";
 
+import { ConfirmButton } from "@/components/confirm-button";
 import { DecisionStatusBadge } from "@/components/decision-status-badge";
 import { Note, SheetField as Field } from "@/components/sheet-field";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { DecisionView } from "@/lib/brain/overview";
 
-export function DecisionsTable({ decisions }: { decisions: DecisionView[] }) {
+import { stillHoldsAction } from "./actions";
+
+export function DecisionsTable({ decisions, slug, canWrite }: { decisions: DecisionView[]; slug: string; canWrite: boolean }) {
   const [open, setOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = decisions.find((d) => d.id === selectedId);
@@ -43,6 +46,7 @@ export function DecisionsTable({ decisions }: { decisions: DecisionView[] }) {
                 <div className="flex gap-2">
                   <DecisionStatusBadge status={decision.status} />
                   {decision.restricted && <DecisionStatusBadge status="restricted" />}
+                  {decision.sourceChanges.length > 0 && <DecisionStatusBadge status="changed" />}
                 </div>
               </TableCell>
               <TableCell className="text-secondary-foreground">{decision.maker ?? "Unknown"}</TableCell>
@@ -53,14 +57,14 @@ export function DecisionsTable({ decisions }: { decisions: DecisionView[] }) {
       </Table>
       <Sheet open={open && selected !== undefined} onOpenChange={setOpen}>
         <SheetContent className="overflow-y-auto sm:max-w-lg">
-          {selected && <DecisionDetail decision={selected} />}
+          {selected && <DecisionDetail decision={selected} slug={slug} canWrite={canWrite} />}
         </SheetContent>
       </Sheet>
     </>
   );
 }
 
-function DecisionDetail({ decision }: { decision: DecisionView }) {
+function DecisionDetail({ decision, slug, canWrite }: { decision: DecisionView; slug: string; canWrite: boolean }) {
   const decided = [
     decision.maker ?? "Unknown",
     decision.approver ? `approved by ${decision.approver}` : null,
@@ -76,6 +80,7 @@ function DecisionDetail({ decision }: { decision: DecisionView }) {
         <div className="flex gap-2">
           <DecisionStatusBadge status={decision.status} />
           {decision.restricted && <DecisionStatusBadge status="restricted" />}
+          {decision.sourceChanges.length > 0 && <DecisionStatusBadge status="changed" />}
         </div>
         <SheetTitle className="text-2xl font-light">{decision.title}</SheetTitle>
         <SheetDescription className="text-secondary-foreground font-light">{decision.statement}</SheetDescription>
@@ -110,6 +115,26 @@ function DecisionDetail({ decision }: { decision: DecisionView }) {
           ))}
           {decision.hiddenSources && <Note>{decision.hiddenSources}</Note>}
         </Field>
+        {decision.sourceChanges.length > 0 && (
+          <Field label="Source changed">
+            {decision.sourceChanges.map((change) => (
+              <span key={change.title}>
+                {change.title} was {change.change} on {change.date}. Check that the decision still holds, or supersede it.
+              </span>
+            ))}
+            {canWrite && (
+              <div>
+                <ConfirmButton
+                  label="Still holds"
+                  title="Confirm this decision still holds"
+                  description="The decision stays accepted and the changed source is marked as checked."
+                  confirmLabel="Still holds"
+                  onConfirm={() => stillHoldsAction(slug, decision.id)}
+                />
+              </div>
+            )}
+          </Field>
+        )}
         {decision.supersedes.length > 0 && (
           <Field label="Supersedes">
             <List items={decision.supersedes} empty="" />

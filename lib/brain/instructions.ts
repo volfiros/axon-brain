@@ -7,5 +7,6 @@ export const instructions = [
   "To turn connector data into decisions: call pending_sources, read each Source, and call recall on each decision you find to skip ones already saved.",
   "Then call propose_from_source once per Source with the new decisions only, each excerpt copied word for word, or with no items when it holds no decision.",
   "Proposed decisions are not accepted. Show them with review_proposals list, and accept or dismiss only the ones the user names.",
+  "When a decision's source was edited or deleted, say so. Mark it with review_source_changes still_holds only after the user confirms it, otherwise offer supersede.",
   "After the user settles a clear decision, and when the session is wrapping up, offer to save the session with the save-session prompt. Never send the transcript, only items from save_session.",
 ].join("\n");

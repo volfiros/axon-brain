@@ -58,7 +58,7 @@ export default async function WorkspaceHome({ params }: { params: Promise<{ work
               description="Save one from Claude Code with the save tool."
             />
           ) : (
-            <DecisionsTable decisions={decisions} />
+            <DecisionsTable decisions={decisions} slug={slug} canWrite={member.role !== "Guest"} />
           )}
         </TabsContent>
         <TabsContent value="proposals">
@@ -69,7 +69,7 @@ export default async function WorkspaceHome({ params }: { params: Promise<{ work
               description="Review proposals from Claude Code with review_proposals."
             />
           ) : (
-            <DecisionsTable decisions={proposals} />
+            <DecisionsTable decisions={proposals} slug={slug} canWrite={member.role !== "Guest"} />
           )}
         </TabsContent>
       </Tabs>

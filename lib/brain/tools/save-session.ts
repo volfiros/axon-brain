@@ -4,6 +4,7 @@ import { requireWriter } from "../caller";
 import { resolveDecisionMatch, type Match, type Resolution } from "../session/dedupe";
 import { redactItem, type Finding } from "../session/redact";
 import { SAVE_SESSION_RULES } from "../session/template";
+import { stampMissingHashes } from "../source-changes";
 import { defineTool, type BrainContext } from "../tool";
 import { renderPlan, resolveItem, supersedeDecision, writeItem, type ItemPlan, type Sensitivity } from "../write";
 
@@ -218,7 +219,7 @@ async function addExcerpts(ctx: BrainContext, nodeId: string, sourceId: string, 
      OPTIONAL MATCH (n)-[:DERIVED_FROM]->(seen:Excerpt {text: ex.text})-[:IN]->(s)
      WITH n, s, ex, seen
      WHERE seen IS NULL
-     CREATE (n)-[:DERIVED_FROM]->(:Excerpt {id: ex.id, text: ex.text})-[:IN]->(s)`,
+     CREATE (n)-[:DERIVED_FROM {source_hash: s.content_hash}]->(:Excerpt {id: ex.id, text: ex.text})-[:IN]->(s)`,
     { nodeId, sourceId, excerpts: texts.map((text) => ({ id: newId("ex"), text })) },
   );
 }
@@ -286,6 +287,7 @@ async function save(ctx: BrainContext, p: Prepared, sourceId: string): Promise<{
          SET d.status = 'accepted', d.confirmed_by = $personId, d.confirmed_at = localdatetime()`,
         { id: r.decisionId, personId: ctx.caller.personId },
       );
+      await stampMissingHashes(ctx, [r.decisionId]);
     }
     return { id: r.decisionId, again: false };
   }

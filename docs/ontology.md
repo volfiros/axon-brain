@@ -234,6 +234,7 @@ The brain MCP server lives at `/w/<workspace>/mcp` (ADR 0003). The workspace com
 | `pending_sources` | Connector Sources still waiting for extraction, paged, text capped at 4,000 characters per call |
 | `propose_from_source(source_id, content_hash, items)` | Write the decisions found in one Source as `proposed`, then mark the Source done |
 | `review_proposals(action)` | List proposed decisions, or accept (optionally edited) or dismiss them |
+| `review_source_changes(action, ids)` | List accepted decisions whose Source was edited or deleted since it was recorded, or confirm that they still hold |
 
 Planned, not built yet: `what_changed(since, person)` for My Brief.
 
@@ -251,11 +252,30 @@ Connectors write Sources with `extraction` set to `'pending'`, `'done'` or `'ski
 3. Calls `propose_from_source` with the Source's `content_hash`. Each excerpt must appear word for word in the Source text (whitespace collapsed), or nothing is written. A changed hash also writes nothing.
 4. Asks the person, then calls `review_proposals` to accept or dismiss.
 
-A proposed Decision is `DERIVED_FROM` an Excerpt `IN` the Source, `MADE_BY` the Source's author when there is exactly one, copies the Source's `VISIBLE_TO` edges, and stores `source_hash`. The Source gets `extraction = 'done'`, `extracted_at` and `extracted_by`. If the Source text later changes, `source_hash` no longer matches and the review list says so.
+A proposed Decision is `DERIVED_FROM` an Excerpt `IN` the Source, with `source_hash` on that link, `MADE_BY` the Source's author when there is exactly one, and copies the Source's `VISIBLE_TO` edges. The Source gets `extraction = 'done'`, `extracted_at` and `extracted_by`. If the Source text later changes, `source_hash` no longer matches and the review list says so. Accepting keeps the hash from the proposal, and only fills in links that have none.
 
 ```cypher
 MATCH (s:Source {id: $id}) WHERE s.content_hash = $hash
 SET s.extraction = 'done', s.extracted_at = localdatetime(), s.extracted_by = $personId
+```
+
+### Source changes
+
+Connectors update `content_hash` when a message or work item is edited and set `deleted_at` when it is deleted. An accepted Decision needs review when one of its visible Sources changed since the link was stamped. Recall adds a line per changed Source, the workspace home shows a "Source changed" badge, and `review_source_changes list` lists them. Decision status never changes on its own: a person confirms the decision still holds (`review_source_changes still_holds`, or "Still holds" in the side sheet), which re-stamps the link, or supersedes it. Only Sources the caller can see are checked, so a hidden Source shows up only as the usual restricted note.
+
+```cypher
+MATCH (u:Person {id: $personId})-[:HAS_ROLE]->(role:Role)
+MATCH (d:Decision {status: 'accepted'})-[link:DERIVED_FROM]->(:Excerpt)-[:IN]->(s:Source)
+WHERE <visible(d)> AND <visible(s)>
+  AND ((s.deleted_at IS NOT NULL AND (link.checked_at IS NULL OR link.checked_at < s.deleted_at))
+    OR (s.deleted_at IS NULL AND link.source_hash IS NOT NULL AND s.content_hash <> link.source_hash))
+RETURN DISTINCT d.id, d.title
+```
+
+Still holds, through application code only:
+
+```cypher
+SET link.source_hash = s.content_hash, link.checked_at = localdatetime(), link.checked_by = $personId
 ```
 
 ### Recall
