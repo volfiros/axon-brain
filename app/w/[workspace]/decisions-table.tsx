@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 
 import { DecisionStatusBadge } from "@/components/decision-status-badge";
+import { Note, SheetField as Field } from "@/components/sheet-field";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { DecisionView } from "@/lib/brain/overview";
@@ -124,15 +125,6 @@ function DecisionDetail({ decision }: { decision: DecisionView }) {
   );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="bg-surface text-surface-foreground flex flex-col gap-2 rounded-2xl p-4 text-sm">
-      <span className="text-secondary-foreground text-xs font-light">{label}</span>
-      {children}
-    </div>
-  );
-}
-
 function List({ items, empty }: { items: string[]; empty: string }) {
   if (items.length === 0) return <Note>{empty}</Note>;
   return (
@@ -142,8 +134,4 @@ function List({ items, empty }: { items: string[]; empty: string }) {
       ))}
     </ul>
   );
-}
-
-function Note({ children }: { children: ReactNode }) {
-  return <span className="text-secondary-foreground font-light">{children}</span>;
 }
