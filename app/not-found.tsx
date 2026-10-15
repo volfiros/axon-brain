@@ -1,0 +1,23 @@
+import { CompassIcon } from "lucide-react";
+import Link from "next/link";
+
+import { EmptyState } from "@/components/empty-state";
+import { PageShell } from "@/components/page-shell";
+import { Button } from "@/components/ui/button";
+
+export default function NotFound() {
+  return (
+    <PageShell>
+      <EmptyState
+        icon={<CompassIcon />}
+        title="Page not found"
+        description="This page does not exist, or you are not a member of this workspace."
+        action={
+          <Button variant="outline" shape="pill" asChild>
+            <Link href="/onboarding">Back to workspaces</Link>
+          </Button>
+        }
+      />
+    </PageShell>
+  );
+}

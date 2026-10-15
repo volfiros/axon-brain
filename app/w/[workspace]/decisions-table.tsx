@@ -1,0 +1,149 @@
+"use client";
+
+import { useState, type ReactNode } from "react";
+
+import { DecisionStatusBadge } from "@/components/decision-status-badge";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import type { DecisionView } from "@/lib/brain/overview";
+
+export function DecisionsTable({ decisions }: { decisions: DecisionView[] }) {
+  const [open, setOpen] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selected = decisions.find((d) => d.id === selectedId);
+
+  return (
+    <>
+      <Table variant="rows">
+        <TableHeader>
+          <TableRow>
+            <TableHead>Decision</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Made by</TableHead>
+            <TableHead>Date</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {decisions.map((decision) => (
+            <TableRow
+              key={decision.id}
+              className="cursor-pointer"
+              onClick={() => {
+                setSelectedId(decision.id);
+                setOpen(true);
+              }}
+            >
+              <TableCell className="max-w-md text-wrap">
+                <button type="button" className="text-left">
+                  {decision.title}
+                </button>
+              </TableCell>
+              <TableCell>
+                <div className="flex gap-2">
+                  <DecisionStatusBadge status={decision.status} />
+                  {decision.restricted && <DecisionStatusBadge status="restricted" />}
+                </div>
+              </TableCell>
+              <TableCell className="text-secondary-foreground">{decision.maker ?? "Unknown"}</TableCell>
+              <TableCell className="text-secondary-foreground">{decision.date}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      <Sheet open={open && selected !== undefined} onOpenChange={setOpen}>
+        <SheetContent className="overflow-y-auto sm:max-w-lg">
+          {selected && <DecisionDetail decision={selected} />}
+        </SheetContent>
+      </Sheet>
+    </>
+  );
+}
+
+function DecisionDetail({ decision }: { decision: DecisionView }) {
+  const decided = [
+    decision.maker ?? "Unknown",
+    decision.approver ? `approved by ${decision.approver}` : null,
+    decision.date,
+    decision.replaced ? `replaced ${decision.replaced}` : null,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  return (
+    <>
+      <SheetHeader>
+        <div className="flex gap-2">
+          <DecisionStatusBadge status={decision.status} />
+          {decision.restricted && <DecisionStatusBadge status="restricted" />}
+        </div>
+        <SheetTitle className="text-2xl font-light">{decision.title}</SheetTitle>
+        <SheetDescription className="text-secondary-foreground font-light">{decision.statement}</SheetDescription>
+      </SheetHeader>
+      <div className="flex flex-col gap-3 px-4 pb-6">
+        <Field label="Because">
+          <List items={decision.because} empty="No reason you can see" />
+          {decision.hiddenReasons && <Note>{decision.hiddenReasons}</Note>}
+        </Field>
+        <Field label="Rejected alternatives">
+          <List items={decision.rejected} empty="No alternatives recorded" />
+        </Field>
+        <Field label="Affects">
+          <List items={decision.affects} empty="Nothing linked" />
+        </Field>
+        <Field label="Decided by">
+          <span>{decided}</span>
+        </Field>
+        <Field label="Source">
+          {decision.sources.length === 0 && <Note>None you can see</Note>}
+          {decision.sources.map((source) => (
+            <div key={`${source.title}-${source.quote}`} className="flex flex-col gap-1">
+              <q className="font-light">{source.quote}</q>
+              {source.url ? (
+                <a href={source.url} target="_blank" rel="noreferrer" className="text-secondary-foreground underline-offset-4 hover:underline">
+                  {source.title}
+                </a>
+              ) : (
+                <span className="text-secondary-foreground">{source.title}</span>
+              )}
+            </div>
+          ))}
+          {decision.hiddenSources && <Note>{decision.hiddenSources}</Note>}
+        </Field>
+        {decision.supersedes.length > 0 && (
+          <Field label="Supersedes">
+            <List items={decision.supersedes} empty="" />
+          </Field>
+        )}
+        {decision.supersededBy.length > 0 && (
+          <Field label="Superseded by">
+            <List items={decision.supersededBy} empty="" />
+          </Field>
+        )}
+      </div>
+    </>
+  );
+}
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="bg-surface text-surface-foreground flex flex-col gap-2 rounded-2xl p-4 text-sm">
+      <span className="text-secondary-foreground text-xs font-light">{label}</span>
+      {children}
+    </div>
+  );
+}
+
+function List({ items, empty }: { items: string[]; empty: string }) {
+  if (items.length === 0) return <Note>{empty}</Note>;
+  return (
+    <ul className="flex flex-col gap-1">
+      {items.map((item) => (
+        <li key={item}>{item}</li>
+      ))}
+    </ul>
+  );
+}
+
+function Note({ children }: { children: ReactNode }) {
+  return <span className="text-secondary-foreground font-light">{children}</span>;
+}

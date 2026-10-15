@@ -5,7 +5,6 @@ import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { PageShell } from "@/components/page-shell";
 import { RoleBadge } from "@/components/role-badge";
-import { SignOutButton } from "@/components/sign-out-button";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requireAccount } from "@/lib/auth/session";
@@ -18,7 +17,7 @@ export default async function OnboardingPage() {
   const memberships = await listMemberships(account.id);
 
   return (
-    <PageShell actions={<SignOutButton />}>
+    <PageShell account={account}>
       <PageHeader title="Workspaces" description={`Signed in as ${account.username ?? account.name}`} />
       {memberships.length === 0 ? (
         <EmptyState
@@ -44,6 +43,9 @@ export default async function OnboardingPage() {
                 </TableCell>
                 <TableCell>
                   <div className="flex justify-end gap-2">
+                    <Button variant="tab" size="sm" shape="pill" asChild>
+                      <Link href={`/w/${membership.slug}`}>Home</Link>
+                    </Button>
                     <Button variant="tab" size="sm" shape="pill" asChild>
                       <Link href={`/w/${membership.slug}/setup`}>Setup</Link>
                     </Button>

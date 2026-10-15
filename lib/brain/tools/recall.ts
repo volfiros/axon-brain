@@ -29,7 +29,7 @@ const ENTRY_POINTS = (filter: string, ret: string) => `
 
 type Entry = { id: string; status: string; score: number; coverage: number; via: string };
 
-type Detail = {
+export type Detail = {
   id: string;
   title: string;
   statement: string;
@@ -126,7 +126,7 @@ function label(d: Detail): string {
   return d.status === "accepted" && d.confirmedBy ? "accepted" : "proposed";
 }
 
-async function decisionDetails(ctx: BrainContext, ids: string[]): Promise<Map<string, Detail>> {
+export async function decisionDetails(ctx: BrainContext, ids: string[]): Promise<Map<string, Detail>> {
   const rows = await readAsCaller<Detail>(
     ctx,
     `${FROM_CALLER}

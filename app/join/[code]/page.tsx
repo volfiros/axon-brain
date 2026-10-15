@@ -8,11 +8,11 @@ import { JoinButton } from "./join-button";
 
 export default async function JoinPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
-  await requireAccount(`/join/${encodeURIComponent(code)}`);
+  const account = await requireAccount(`/join/${encodeURIComponent(code)}`);
   const workspace = await findInvite(code);
 
   return (
-    <PageShell width="narrow">
+    <PageShell width="narrow" account={account}>
       {workspace ? (
         <AuthCard title={`Join ${workspace.name}`} description="You join as a Guest. An Admin can change your role later.">
           <JoinButton code={code} />
