@@ -62,7 +62,7 @@ export function ConfirmButton({
               Cancel
             </Button>
           </DialogClose>
-          <Button variant={variant} shape="pill" onClick={confirm} disabled={pending}>
+          <Button variant={variant} shape="pill" onClick={confirm} loading={pending}>
             {confirmLabel}
           </Button>
         </DialogFooter>

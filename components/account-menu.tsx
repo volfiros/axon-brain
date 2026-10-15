@@ -1,9 +1,10 @@
 "use client";
 
-import { BuildingIcon, LogOutIcon, MoonIcon, SettingsIcon, SunIcon } from "lucide-react";
+import { BuildingIcon, Loader2Icon, LogOutIcon, MoonIcon, SettingsIcon, SunIcon } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
+import { useState } from "react";
+import { toast } from "sonner";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -26,13 +27,20 @@ function initials(name: string): string {
 }
 
 export function AccountMenu({ account }: { account: AccountSummary }) {
-  const router = useRouter();
   const { resolvedTheme, setTheme } = useTheme();
+  const [signingOut, setSigningOut] = useState(false);
 
-  async function signOut() {
-    await authClient.signOut();
-    router.push("/sign-in");
-    router.refresh();
+  async function signOut(event: Event) {
+    event.preventDefault();
+    setSigningOut(true);
+    const { error } = await authClient.signOut();
+    if (error) {
+      setSigningOut(false);
+      toast.error(error.message ?? "Sign out failed. Try again.");
+      return;
+    }
+    // A full load drops the client router cache, and replace keeps this signed-in page out of history.
+    window.location.replace("/sign-in");
   }
 
   return (
@@ -68,9 +76,9 @@ export function AccountMenu({ account }: { account: AccountSummary }) {
           {resolvedTheme === "dark" ? "Light theme" : "Dark theme"}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={signOut}>
-          <LogOutIcon />
-          Sign out
+        <DropdownMenuItem onSelect={signOut} disabled={signingOut}>
+          {signingOut ? <Loader2Icon className="animate-spin" /> : <LogOutIcon />}
+          {signingOut ? "Signing out" : "Sign out"}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

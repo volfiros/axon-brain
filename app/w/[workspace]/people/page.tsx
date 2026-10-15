@@ -1,14 +1,15 @@
 import { SearchIcon, UsersIcon } from "lucide-react";
+import Form from "next/form";
 
 import { EmptyState } from "@/components/empty-state";
 import { FormField } from "@/components/form-field";
 import { PageHeader } from "@/components/page-header";
-import { Button } from "@/components/ui/button";
 import { requireMember } from "@/lib/auth/session";
 import { memberContext } from "@/lib/brain/overview";
 import { listPeople, rankPeople } from "@/lib/brain/people";
 
 import { PeopleTable, RankedTable } from "./people-table";
+import { SearchButton } from "./search-button";
 
 export default async function PeoplePage({
   params,
@@ -26,15 +27,12 @@ export default async function PeoplePage({
   return (
     <>
       <PageHeader title="People" description={workspace.name} />
-      <form action={`/w/${slug}/people`} className="flex items-end gap-2">
+      <Form action={`/w/${slug}/people`} className="flex items-end gap-2">
         <div className="flex-1">
           <FormField id="topic" label="Who knows about" defaultValue={topic} placeholder="refunds" autoComplete="off" />
         </div>
-        <Button type="submit" variant="brand" size="lg" shape="pill">
-          <SearchIcon />
-          Search
-        </Button>
-      </form>
+        <SearchButton />
+      </Form>
       {topic && (
         <section className="flex flex-col gap-2">
           <h2 className="text-2xl font-light">{`Who knows about "${topic}"`}</h2>

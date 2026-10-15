@@ -51,13 +51,13 @@ export function SignUpForm() {
         </span>
       }
     >
-      <form onSubmit={onSubmit} className="flex flex-col gap-4">
+      <form method="post" onSubmit={onSubmit} className="flex flex-col gap-4">
         <FormField id="name" label="Name" autoComplete="name" required />
         <FormField id="username" label="Username" autoComplete="username" minLength={3} maxLength={30} required />
         <FormField id="email" label="Email" type="email" autoComplete="email" required />
         <FormField id="password" label="Password" type="password" autoComplete="new-password" minLength={8} required />
         <FormError message={error} />
-        <Button type="submit" variant="brand" size="lg" shape="pill" disabled={pending}>
+        <Button type="submit" variant="brand" size="lg" shape="pill" loading={pending}>
           {pending ? "Creating account" : "Create account"}
         </Button>
       </form>

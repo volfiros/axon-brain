@@ -13,7 +13,11 @@ const mcp = createMcpHandler(registerBrain, {
 async function handle(request: Request, { params }: { params: Promise<{ workspace: string }> }) {
   const { workspace } = await params;
   // The workspace comes only from the URL (ADR 0003), so a token for one workspace cannot read another.
-  const authed = withMcpAuth(mcp, (_req, token) => authenticate(token, workspace), { required: true });
+  // Point clients at this workspace's metadata; the library default is a root path that has no route here.
+  const authed = withMcpAuth(mcp, (_req, token) => authenticate(token, workspace), {
+    required: true,
+    resourceMetadataPath: `/.well-known/oauth-protected-resource/w/${workspace}/mcp`,
+  });
   return authed(request);
 }
 

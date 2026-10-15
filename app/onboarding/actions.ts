@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 import { requireAccount } from "@/lib/auth/session";
 import { createWorkspace, joinWithCode } from "@/lib/workspaces";
 
-export type FormState = { error?: string };
+// Values go back with an error because React resets the form after an action, which would clear what was typed.
+export type FormState = { error?: string; values?: Record<string, string> };
 
 const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
@@ -13,14 +14,15 @@ export async function createWorkspaceAction(_state: FormState, form: FormData): 
   const account = await requireAccount("/onboarding");
   const name = String(form.get("name") ?? "").trim();
   const slug = String(form.get("slug") ?? "").trim().toLowerCase();
-  if (!name) return { error: "Give the workspace a name." };
+  const values = { name, slug };
+  if (!name) return { error: "Give the workspace a name.", values };
   if (!SLUG.test(slug) || slug === "accounts" || slug.length > 40) {
-    return { error: "Use lowercase letters, numbers and single hyphens for the address, up to 40 characters." };
+    return { error: "Use lowercase letters, numbers and single hyphens for the address, up to 40 characters.", values };
   }
   try {
     await createWorkspace(account, { name, slug });
   } catch (err) {
-    return { error: (err as Error).message };
+    return { error: (err as Error).message, values };
   }
   redirect(`/w/${slug}`);
 }
@@ -33,7 +35,7 @@ export async function joinWorkspaceAction(_state: FormState, form: FormData): Pr
   try {
     slug = (await joinWithCode(account, code)).slug;
   } catch (err) {
-    return { error: (err as Error).message };
+    return { error: (err as Error).message, values: { code } };
   }
   redirect(`/w/${slug}`);
 }

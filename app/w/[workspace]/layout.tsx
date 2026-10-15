@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 import { PageShell } from "@/components/page-shell";
-import { requireMember } from "@/lib/auth/session";
+import { getAccount, requireMember } from "@/lib/auth/session";
 import { listMemberships } from "@/lib/workspaces";
 
 import { workspaceNav } from "./workspace-nav";
@@ -14,6 +14,8 @@ export default async function WorkspaceLayout({
   children: ReactNode;
 }) {
   const { workspace: slug } = await params;
+  // Signed out: each page redirects with its own path as ?next, which a layout cannot see.
+  if (!(await getAccount())) return children;
   const { account, workspace } = await requireMember(slug, `/w/${slug}`);
   const memberships = await listMemberships(account.id);
 

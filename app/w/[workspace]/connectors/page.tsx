@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireMember } from "@/lib/auth/session";
-import { githubConnection, installUrl, type ConnectorStatus } from "@/lib/connectors/github/connection";
+import { githubAppConfigured, githubConnection, installUrl, type ConnectorStatus } from "@/lib/connectors/github/connection";
 
 const STATUS_BADGES: Record<ConnectorStatus, { label: string; variant: ComponentProps<typeof Badge>["variant"] }> = {
   syncing: { label: "Syncing", variant: "outline" },
@@ -35,11 +35,14 @@ export default async function ConnectorsPage({ params }: { params: Promise<{ wor
           <p className="text-secondary-foreground text-sm font-light">
             {connection?.synced_at ? `Last synced ${connection.synced_at.replace("T", " ")} UTC` : "Not synced yet"}
           </p>
-          {member.role === "Admin" && (
-            <Button variant={connection ? "secondary" : "brand"} shape="pill" asChild>
-              <a href={installUrl(slug)}>{connection ? "Manage repositories" : "Connect GitHub"}</a>
-            </Button>
-          )}
+          {member.role === "Admin" &&
+            (githubAppConfigured() ? (
+              <Button variant={connection ? "secondary" : "brand"} shape="pill" asChild>
+                <a href={installUrl(slug)}>{connection ? "Manage repositories" : "Connect GitHub"}</a>
+              </Button>
+            ) : (
+              <p className="text-secondary-foreground text-sm font-light">GitHub app is not configured on this server.</p>
+            ))}
         </CardContent>
       </Card>
     </>
