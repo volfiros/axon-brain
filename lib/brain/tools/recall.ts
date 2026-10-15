@@ -83,7 +83,8 @@ export default defineTool({
       return (await restrictedNote(ctx, hidden, "decision")) || "Nothing saved in this workspace matches that question.";
     }
 
-    const details = await decisionDetails(ctx, ranked.map((r) => r.id));
+    const ids = ranked.map((r) => r.id);
+    const [details, graphPaths] = await Promise.all([decisionDetails(ctx, ids), decisionPaths(ctx, ids)]);
     const blocks: string[] = [];
     if (ranked.length > 0) {
       const top = details.get(ranked[0].id)!;
@@ -91,7 +92,7 @@ export default defineTool({
     }
     for (const entry of ranked) {
       const detail = details.get(entry.id);
-      if (detail) blocks.push(await renderDecision(ctx, detail, entry.paths));
+      if (detail) blocks.push(await renderDecision(ctx, detail, entry.paths, graphPaths.get(entry.id)));
     }
     if (notes.length > 0) {
       blocks.push(["Context notes:", ...notes.map((n) => `- "${n.quote}" (${n.title}${n.url ? `, ${n.url}` : ""})`)].join("\n"));
@@ -157,7 +158,37 @@ export async function decisionDetails(ctx: BrainContext, ids: string[]): Promise
   return new Map(rows.map((r) => [r.id, r]));
 }
 
-async function renderDecision(ctx: BrainContext, d: Detail, paths: string[]): Promise<string> {
+type GraphPaths = { id: string; sourceNodes: string[] | null; sourceRels: string[] | null; makerNodes: string[] | null; makerRels: string[] | null };
+
+const HOP_LABEL = "[l IN labels(n) WHERE l <> 'Source'][0]";
+const HOP = `'(' + coalesce(${HOP_LABEL} + ': ' + coalesce(n.name, n.title), ${HOP_LABEL}) + ')'`;
+
+/** The directed shortest paths from each visible decision to one visible source and to its maker, as rendered hops. */
+async function decisionPaths(ctx: BrainContext, ids: string[]): Promise<Map<string, GraphPaths>> {
+  const rows = await readAsCaller<GraphPaths>(
+    ctx,
+    `${FROM_CALLER}
+     MATCH (d:Decision) WHERE d.id IN $ids AND ${visible("d")}
+     OPTIONAL MATCH (d)-[:DERIVED_FROM]->(:Excerpt)-[:IN]->(s:Source) WHERE ${visible("s")}
+     WITH d, s ORDER BY s.id
+     WITH d, collect(s)[0] AS s
+     OPTIONAL MATCH (d)-[:MADE_BY]->(p:Person)
+     WITH d, s, p,
+          CASE WHEN s IS NULL THEN null ELSE shortestPath((d)-[:DERIVED_FROM|IN*..2]->(s)) END AS toSource,
+          CASE WHEN p IS NULL THEN null ELSE shortestPath((d)-[:MADE_BY]->(p)) END AS toMaker
+     RETURN d.id AS id,
+            [n IN nodes(toSource) | ${HOP}] AS sourceNodes, [r IN relationships(toSource) | '-[:' + type(r) + ']->'] AS sourceRels,
+            [n IN nodes(toMaker) | ${HOP}] AS makerNodes, [r IN relationships(toMaker) | '-[:' + type(r) + ']->'] AS makerRels`,
+    { ids },
+  );
+  return new Map(rows.map((r) => [r.id, r]));
+}
+
+function hops(nodes: string[] | null, rels: string[] | null): string {
+  return (nodes ?? []).map((node, i) => (i === 0 ? node : `${rels?.[i - 1] ?? ""}${node}`)).join("");
+}
+
+async function renderDecision(ctx: BrainContext, d: Detail, paths: string[], graphPaths?: GraphPaths): Promise<string> {
   const lines = [`Decision: ${d.title} (${label(d)}, ${d.id})`];
   const hiddenReasons = await restrictedNote(ctx, d.hiddenReasons, "reason");
   lines.push(`Because: ${d.because.join("; ") || "no reason you can see"}${hiddenReasons ? `. ${hiddenReasons}` : ""}`);
@@ -173,9 +204,10 @@ async function renderDecision(ctx: BrainContext, d: Detail, paths: string[]): Pr
   if (d.supersedes.length) lines.push(`Supersedes: ${d.supersedes.join("; ")}`);
   if (d.supersededBy.length) lines.push(`Superseded by: ${d.supersededBy.join("; ")}`);
   const entry = paths.find(Boolean) ?? "";
-  const source = d.sources[0] ? `-[:DERIVED_FROM]->(Excerpt)-[:IN]->(${d.sources[0].kind ?? "Source"}: ${d.sources[0].title})` : "";
+  const toSource = hops(graphPaths?.sourceNodes ?? null, graphPaths?.sourceRels ?? null) || `(Decision: ${d.title})`;
+  const toMaker = hops(graphPaths?.makerNodes ?? null, graphPaths?.makerRels ?? null);
   const history = d.supersedes.map((title) => `; (Decision)-[:SUPERSEDES]->(Decision: ${title})`).join("");
-  lines.push(`Path: ${entry}(Decision: ${d.title})${source}${history}`);
+  lines.push(`Path: ${entry}${toSource}${toMaker ? `; ${toMaker}` : ""}${history}`);
   return lines.join("\n");
 }
 

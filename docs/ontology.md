@@ -287,6 +287,23 @@ RETURN d.id, d.status, score
 
 Reasons are filtered too: `OPTIONAL MATCH (d)-[:BECAUSE_OF]->(r) WHERE r:Feedback OR <visible(r)>`, and hidden reasons are only counted.
 
+The Path line comes from two directed `shortestPath` calls per decision: one to a visible Source (the first by id) and one to the decision's maker. Both endpoints pass the visibility filter before the path is computed, and the only node between a decision and its source is the Excerpt, which is visible when its Source is, so no restricted node appears in a path. FalkorDB only allows `shortestPath` in `WITH` or `RETURN`, so a missing endpoint is guarded with `CASE`.
+
+```cypher
+MATCH (u:Person {id: $personId})-[:HAS_ROLE]->(role:Role)
+MATCH (d:Decision) WHERE d.id IN $ids AND <visible(d)>
+OPTIONAL MATCH (d)-[:DERIVED_FROM]->(:Excerpt)-[:IN]->(s:Source) WHERE <visible(s)>
+WITH d, s ORDER BY s.id
+WITH d, collect(s)[0] AS s
+OPTIONAL MATCH (d)-[:MADE_BY]->(p:Person)
+WITH d, s, p,
+     CASE WHEN s IS NULL THEN null ELSE shortestPath((d)-[:DERIVED_FROM|IN*..2]->(s)) END AS toSource,
+     CASE WHEN p IS NULL THEN null ELSE shortestPath((d)-[:MADE_BY]->(p)) END AS toMaker
+RETURN d.id, nodes(toSource), relationships(toSource), nodes(toMaker), relationships(toMaker)
+```
+
+The agent sees, for example, `Path: (CodeUnit: src/webhooks.ts)<-[:AFFECTS]-(Decision: Handle webhooks idempotently by event id)-[:DERIVED_FROM]->(Excerpt)-[:IN]->(PR: ...); (Decision: ...)-[:MADE_BY]->(Person: ...)`.
+
 ### Who knows
 
 One `UNION ALL` query returns one row per signal, summed per person. Points: owns the topic, file or process 5; made a current decision on it 3 (a superseded one 1); approved one 2; wrote a source behind one 2; 0.5 per recorded change (`WORKED_ON.count`, directly or through a WorkItem that `TOUCHES` it). Only decisions and sources visible to the caller score. A matched node or WorkItem that has `VISIBLE_TO` edges (a Project or Plane work item) must be visible to the caller too; nodes without any (CodeUnit, Process, Topic) always count.
