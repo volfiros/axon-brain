@@ -2,6 +2,7 @@ import { z } from "zod";
 import { FROM_CALLER, readAsCaller, visible } from "../access";
 import { requireWriter } from "../caller";
 import { day } from "../search";
+import { stampMissingHashes } from "../source-changes";
 import { defineTool, type BrainContext } from "../tool";
 
 type Proposal = {
@@ -50,6 +51,7 @@ export default defineTool({
        RETURN d.id AS id, d.title AS title`,
       { ids: input.ids, personId: ctx.caller.personId, title: input.title ?? null, statement: input.statement ?? null },
     );
+    if (input.action === "accept") await stampMissingHashes(ctx, changed.map((c) => c.id));
     const missed = input.ids.filter((id) => !changed.some((c) => c.id === id));
     const verb = input.action === "accept" ? "Accepted" : "Dismissed";
     return [
@@ -71,11 +73,11 @@ async function list(ctx: BrainContext, skip: number, limit: number): Promise<str
     ctx,
     `${FROM_CALLER}
      MATCH (d:Decision {status: 'proposed'}) WHERE ${visible("d")}
-     OPTIONAL MATCH (d)-[:DERIVED_FROM]->(ex:Excerpt)-[:IN]->(s:Source) WHERE ${visible("s")}
+     OPTIONAL MATCH (d)-[link:DERIVED_FROM]->(ex:Excerpt)-[:IN]->(s:Source) WHERE ${visible("s")}
      OPTIONAL MATCH (d)-[:MADE_BY]->(m:Person)
      RETURN d.id AS id, d.title AS title, d.statement AS statement, m.name AS maker, d.recorded_at AS recordedAt,
             ex.text AS quote, s.title AS sourceTitle, s.url AS url,
-            d.source_hash IS NOT NULL AND s.content_hash <> d.source_hash AS stale
+            link.source_hash IS NOT NULL AND s.content_hash <> link.source_hash AS stale
      ORDER BY recordedAt, id SKIP $skip LIMIT $limit`,
     { skip, limit },
   );

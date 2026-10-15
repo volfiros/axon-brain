@@ -24,6 +24,7 @@ export type DecisionView = {
   affects: string[];
   sources: { quote: string; title: string; url: string | null }[];
   hiddenSources: string;
+  sourceChanges: { title: string; change: "edited" | "deleted"; date: string }[];
   supersedes: string[];
   supersededBy: string[];
 };
@@ -68,9 +69,9 @@ export async function listDecisions(ctx: BrainContext, statuses: DecisionStatus[
       hiddenReasons: await restrictedNote(ctx, d.hiddenReasons, "reason"),
       rejected: d.rejected,
       affects: row.affects,
-      // collect() of a map keeps the all-null map an unmatched OPTIONAL MATCH leaves behind.
-      sources: d.sources.filter((s) => s.quote).map(({ quote, title, url }) => ({ quote, title, url })),
+      sources: d.sources.map(({ quote, title, url }) => ({ quote, title, url })),
       hiddenSources: await restrictedNote(ctx, d.hiddenSources, "source"),
+      sourceChanges: d.sourceChanges.map((c) => ({ title: c.title, change: c.change, date: day(c.at) })),
       supersedes: d.supersedes,
       supersededBy: d.supersededBy,
     });

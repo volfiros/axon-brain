@@ -67,7 +67,7 @@ export default defineTool({
     const madeBy = source.authors.length === 1 ? source.authors[0] : null;
     const written = [];
     for (const plan of plans) {
-      const { itemId } = await writeItem(ctx, plan, { id: source_id }, { status: "proposed", madeBy, sourceHash: content_hash });
+      const { itemId } = await writeItem(ctx, plan, { id: source_id }, { status: "proposed", madeBy });
       written.push({ id: itemId, plan });
     }
     await ctx.graph.query(

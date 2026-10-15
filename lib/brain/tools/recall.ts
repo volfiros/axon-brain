@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { FROM_CALLER, readAsCaller, restrictedNote, visible } from "../access";
 import { day, searchTerms } from "../search";
+import { sourceChangeRow, sourceChanged, type SourceChange } from "../source-changes";
 import { defineTool, type BrainContext } from "../tool";
 
 const NEIGHBOR = "(x:Topic OR x:CodeUnit OR x:Process OR x:Project) AND any(w IN $stems WHERE toLower(x.name) CONTAINS w OR toLower(coalesce(x.path, '')) CONTAINS w)";
@@ -44,6 +45,7 @@ export type Detail = {
   rejected: string[];
   sources: { quote: string; title: string; url: string | null; kind: string }[];
   hiddenSources: number;
+  sourceChanges: SourceChange[];
   supersedes: string[];
   supersededBy: string[];
 };
@@ -141,17 +143,23 @@ export async function decisionDetails(ctx: BrainContext, ids: string[]): Promise
      OPTIONAL MATCH (d)-[:CONSIDERED]->(alt:Alternative)
      WITH u, role, d, maker, approver, because, hiddenReasons,
           collect(DISTINCT alt.title + ': ' + coalesce(alt.reason_rejected, 'no reason recorded')) AS rejected
+     // An unmatched OPTIONAL MATCH collects one all-null map, so it is filtered out below.
      OPTIONAL MATCH (d)-[:DERIVED_FROM]->(ex:Excerpt)-[:IN]->(s:Source) WHERE ${visible("s")}
      WITH u, role, d, maker, approver, because, hiddenReasons, rejected,
-          collect(DISTINCT {quote: ex.text, title: s.title, url: s.url, kind: [l IN labels(s) WHERE l <> 'Source'][0]}) AS sources
+          [x IN collect(DISTINCT {quote: ex.text, title: s.title, url: s.url, kind: [l IN labels(s) WHERE l <> 'Source'][0]}) WHERE x.quote IS NOT NULL] AS sources
      OPTIONAL MATCH (d)-[:DERIVED_FROM]->(:Excerpt)-[:IN]->(hs:Source) WHERE NOT ${visible("hs")}
      WITH u, role, d, maker, approver, because, hiddenReasons, rejected, sources, count(DISTINCT hs) AS hiddenSources
+     // Only Sources the caller can see are checked, so a flag never reveals a hidden Source.
+     OPTIONAL MATCH (d)-[link:DERIVED_FROM]->(:Excerpt)-[:IN]->(cs:Source)
+     WHERE d.status = 'accepted' AND ${visible("cs")} AND ${sourceChanged("link", "cs")}
+     WITH u, role, d, maker, approver, because, hiddenReasons, rejected, sources, hiddenSources,
+          [c IN collect(DISTINCT ${sourceChangeRow("link", "cs")}) WHERE c.title IS NOT NULL] AS sourceChanges
      OPTIONAL MATCH (d)-[:SUPERSEDES]->(old:Decision) WHERE ${visible("old")}
-     WITH u, role, d, maker, approver, because, hiddenReasons, rejected, sources, hiddenSources, collect(DISTINCT old.title) AS supersedes
+     WITH u, role, d, maker, approver, because, hiddenReasons, rejected, sources, hiddenSources, sourceChanges, collect(DISTINCT old.title) AS supersedes
      OPTIONAL MATCH (newer:Decision)-[:SUPERSEDES]->(d) WHERE ${visible("newer")}
      RETURN d.id AS id, d.title AS title, d.statement AS statement, d.status AS status, d.confirmed_by AS confirmedBy,
             d.valid_from AS validFrom, d.valid_to AS validTo, maker.name AS maker, approver.name AS approver,
-            because, hiddenReasons, rejected, sources, hiddenSources, supersedes, collect(DISTINCT newer.title) AS supersededBy`,
+            because, hiddenReasons, rejected, sources, hiddenSources, sourceChanges, supersedes, collect(DISTINCT newer.title) AS supersededBy`,
     { ids },
   );
   return new Map(rows.map((r) => [r.id, r]));
@@ -170,6 +178,7 @@ async function renderDecision(ctx: BrainContext, d: Detail, paths: string[]): Pr
   if (d.sources.length === 0) lines.push("Source: none you can see");
   const hiddenSources = await restrictedNote(ctx, d.hiddenSources, "source");
   if (hiddenSources) lines.push(hiddenSources);
+  for (const c of d.sourceChanges) lines.push(sourceChangeLine(c));
   if (d.supersedes.length) lines.push(`Supersedes: ${d.supersedes.join("; ")}`);
   if (d.supersededBy.length) lines.push(`Superseded by: ${d.supersededBy.join("; ")}`);
   const entry = paths.find(Boolean) ?? "";
@@ -177,6 +186,10 @@ async function renderDecision(ctx: BrainContext, d: Detail, paths: string[]): Pr
   const history = d.supersedes.map((title) => `; (Decision)-[:SUPERSEDES]->(Decision: ${title})`).join("");
   lines.push(`Path: ${entry}(Decision: ${d.title})${source}${history}`);
   return lines.join("\n");
+}
+
+export function sourceChangeLine(c: SourceChange): string {
+  return `The source "${c.title}" for this decision was ${c.change} on ${day(c.at)}; review it, then confirm it still holds with review_source_changes or replace it with supersede.`;
 }
 
 async function contextNotes(ctx: BrainContext, q: string) {
