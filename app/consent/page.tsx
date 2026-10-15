@@ -36,7 +36,7 @@ export default async function ConsentPage({ searchParams }: { searchParams: Prom
 
   if (workspace && !member) {
     return (
-      <PageShell>
+      <PageShell width="narrow">
         <AuthCard
           title="You are not in this workspace"
           description={`${clientName} asked for access to ${workspace.name}, but your account is not a member. Ask an Admin there for an invite.`}
@@ -48,7 +48,7 @@ export default async function ConsentPage({ searchParams }: { searchParams: Prom
   }
 
   return (
-    <PageShell>
+    <PageShell width="narrow">
       <AuthCard
         title={`Allow ${clientName} to use Axon?`}
         description={

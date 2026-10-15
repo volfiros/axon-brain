@@ -48,6 +48,11 @@
   --input: hsl(240 5.9% 90%);
   --ring: hsl(240 10% 3.9%);
 
+  --surface: var(--muted);
+  --surface-foreground: var(--foreground);
+  --surface-hover: var(--border);
+  --surface-active: var(--paper);
+
   --radius: 0.6rem;
 
   --chart-1: hsl(12 76% 61%);
@@ -98,6 +103,11 @@
   --input: hsl(240 3.7% 15.9%);
   --ring: hsl(240 4.9% 83.9%);
 
+  --surface: var(--charcoal);
+  --surface-foreground: var(--primary-foreground);
+  --surface-hover: var(--secondary);
+  --surface-active: var(--tertiary);
+
   --chart-1: hsl(219.3, 100%, 58%);
   --chart-2: hsl(0, 0%, 83.9%);
   --chart-3: hsl(12 76% 61%);
@@ -115,9 +125,6 @@
 }
 
 @theme inline {
-  --font-sans: var(--font-geist-sans), ui-sans-serif, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
-
   --color-brand: var(--brand);
   --color-active: var(--active);
   --color-error: var(--error);
@@ -155,6 +162,11 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
+  --color-surface: var(--surface);
+  --color-surface-foreground: var(--surface-foreground);
+  --color-surface-hover: var(--surface-hover);
+  --color-surface-active: var(--surface-active);
+
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
@@ -188,4 +200,9 @@
 @theme {
   --animate-appear: opacity 250ms ease-in-out;
   --ease-aggressive: cubic-bezier(0, 1.02, 0.27, 0.97);
+}
+
+/* Paints the surface color outside a rounded window, so page content scrolls inside a framed viewport. */
+@utility app-frame {
+  box-shadow: 0 0 0 100vmax var(--surface);
 }

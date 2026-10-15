@@ -1,11 +1,29 @@
+import { cva, type VariantProps } from "class-variance-authority";
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-function Table({ className, ...props }: React.ComponentProps<"table">) {
+const tableVariants = cva("w-full caption-bottom text-sm", {
+  variants: {
+    variant: {
+      default: "",
+      rows: [
+        "border-separate border-spacing-y-3 text-surface-foreground",
+        "[&_tr]:bg-surface [&_tbody_tr:hover]:bg-surface-hover",
+        "[&_th]:text-secondary-foreground [&_th]:text-xs [&_th]:font-light",
+        "[&_td]:py-3 [&_tr>*:first-child]:rounded-l-lg [&_tr>*:first-child]:pl-4 [&_tr>*:last-child]:rounded-r-lg [&_tr>*:last-child]:pr-4",
+      ],
+    },
+  },
+  defaultVariants: {
+    variant: "default",
+  },
+});
+
+function Table({ className, variant, ...props }: React.ComponentProps<"table"> & VariantProps<typeof tableVariants>) {
   return (
     <div className="relative w-full overflow-auto">
-      <table data-slot="table" className={cn("w-full caption-bottom text-sm", className)} {...props} />
+      <table data-slot="table" className={cn(tableVariants({ variant }), className)} {...props} />
     </div>
   );
 }

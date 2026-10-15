@@ -13,7 +13,7 @@ export function JoinButton({ code }: { code: string }) {
     <form action={action} className="flex flex-col gap-4">
       <input type="hidden" name="code" value={code} />
       <FormError message={state.error} />
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" size="lg" shape="pill" disabled={pending}>
         {pending ? "Joining" : "Join workspace"}
       </Button>
     </form>

@@ -29,7 +29,7 @@ export function CreateWorkspaceForm() {
             required
           />
           <FormError message={state.error} />
-          <Button type="submit" disabled={pending}>
+          <Button type="submit" size="lg" shape="pill" disabled={pending}>
             {pending ? "Creating" : "Create workspace"}
           </Button>
         </form>
@@ -50,7 +50,7 @@ export function JoinWorkspaceForm() {
         <form action={action} className="flex flex-col gap-4">
           <FormField id="code" label="Invite code" autoComplete="off" required />
           <FormError message={state.error} />
-          <Button type="submit" variant="outline" disabled={pending}>
+          <Button type="submit" variant="outline" size="lg" shape="pill" disabled={pending}>
             {pending ? "Joining" : "Join workspace"}
           </Button>
         </form>

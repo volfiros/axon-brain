@@ -1,22 +1,58 @@
+import { cva, type VariantProps } from "class-variance-authority";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import { cn } from "@/lib/utils";
+import { type NavItem, NavTabs } from "@/components/nav-tabs";
+import { ThemeToggle } from "@/components/theme-toggle";
 
-const CONTENT_WIDTH = "mx-auto w-full max-w-5xl px-4";
+const windowVariants = cva("flex flex-1 flex-col", {
+  variants: {
+    width: {
+      default: "bg-linear-to-b from-background to-surface",
+      narrow: "",
+    },
+  },
+  defaultVariants: { width: "default" },
+});
 
-export function PageShell({ actions, children }: { actions?: ReactNode; children: ReactNode }) {
+const contentVariants = cva("mx-auto flex w-full flex-1 flex-col gap-8 px-2", {
+  variants: {
+    width: {
+      default: "max-w-7xl pt-8 pb-16 lg:px-8 lg:pt-12",
+      narrow: "max-w-sm justify-center py-16",
+    },
+  },
+  defaultVariants: { width: "default" },
+});
+
+export function PageShell({
+  nav,
+  actions,
+  width,
+  children,
+}: {
+  nav?: NavItem[];
+  actions?: ReactNode;
+  children: ReactNode;
+} & VariantProps<typeof contentVariants>) {
   return (
-    <div className="flex min-h-dvh flex-col">
-      <header className="border-b">
-        <div className={cn(CONTENT_WIDTH, "flex h-14 items-center justify-between")}>
-          <Link href="/" className="font-semibold">
+    <div className="bg-background flex min-h-dvh flex-col px-3 pt-16 pb-3">
+      <header className="bg-surface text-surface-foreground fixed inset-x-0 top-0 z-50 flex h-16 items-center justify-between gap-4 px-5">
+        <div className="flex min-w-0 items-center gap-4">
+          <Link href="/" className="text-xl font-light tracking-tight">
             Axon
           </Link>
-          {actions && <div className="flex items-center gap-2">{actions}</div>}
+          {nav && <NavTabs items={nav} />}
+        </div>
+        <div className="flex items-center gap-2">
+          {actions}
+          <ThemeToggle />
         </div>
       </header>
-      <main className={cn(CONTENT_WIDTH, "flex flex-1 flex-col gap-8 py-8")}>{children}</main>
+      <div aria-hidden className="app-frame pointer-events-none fixed inset-x-3 top-16 bottom-3 z-40 rounded-xl" />
+      <main className={windowVariants({ width })}>
+        <div className={contentVariants({ width })}>{children}</div>
+      </main>
     </div>
   );
 }

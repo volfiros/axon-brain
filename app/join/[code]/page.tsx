@@ -12,7 +12,7 @@ export default async function JoinPage({ params }: { params: Promise<{ code: str
   const workspace = await findInvite(code);
 
   return (
-    <PageShell>
+    <PageShell width="narrow">
       {workspace ? (
         <AuthCard title={`Join ${workspace.name}`} description="You join as a Guest. An Admin can change your role later.">
           <JoinButton code={code} />
@@ -22,9 +22,7 @@ export default async function JoinPage({ params }: { params: Promise<{ code: str
           title="This invite does not work"
           description="The link is wrong or has expired. Ask an Admin for a new one."
           footer={<TextLink href="/onboarding">Back to workspaces</TextLink>}
-        >
-          {null}
-        </AuthCard>
+        />
       )}
     </PageShell>
   );

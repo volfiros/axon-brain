@@ -57,7 +57,7 @@ export function SignUpForm() {
         <FormField id="email" label="Email" type="email" autoComplete="email" required />
         <FormField id="password" label="Password" type="password" autoComplete="new-password" minLength={8} required />
         <FormError message={error} />
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" size="lg" shape="pill" disabled={pending}>
           {pending ? "Creating account" : "Create account"}
         </Button>
       </form>
