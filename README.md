@@ -66,10 +66,10 @@ Copy the environment template and fill it in. The defaults point at a local Falk
 cp .env.example .env
 ```
 
-Run FalkorDB locally (its browser UI on port 3000 is left unmapped so it does not clash with Next.js):
+Run FalkorDB locally. Its browser UI listens on port 3000 inside the container, so it is mapped to http://localhost:3001 to leave port 3000 for Next.js:
 
 ```bash
-docker run -p 6379:6379 -it --rm falkordb/falkordb:latest
+docker run -p 6379:6379 -p 3001:3000 -it --rm falkordb/falkordb:latest
 ```
 
 Load the synthetic demo workspace into the `axon_demo` graph, with its indexes:
