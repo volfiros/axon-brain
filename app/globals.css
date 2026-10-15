@@ -125,6 +125,8 @@
 }
 
 @theme inline {
+  --font-sans: var(--font-sora), ui-sans-serif, system-ui, sans-serif;
+
   --color-brand: var(--brand);
   --color-active: var(--active);
   --color-error: var(--error);
