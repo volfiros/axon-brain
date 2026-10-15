@@ -1,14 +1,21 @@
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
+import { cache } from "react";
 
 import { auth } from "@/lib/auth";
 import { getMember, getWorkspace, type AccountRef, type Member, type Workspace } from "@/lib/workspaces";
 
-export async function requireAccount(next: string): Promise<AccountRef> {
+export const getAccount = cache(async (): Promise<AccountRef | null> => {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) redirect(`/sign-in?next=${encodeURIComponent(next)}`);
+  if (!session) return null;
   const { id, name, username } = session.user as typeof session.user & { username?: string | null };
   return { id, name, username };
+});
+
+export async function requireAccount(next: string): Promise<AccountRef> {
+  const account = await getAccount();
+  if (!account) redirect(`/sign-in?next=${encodeURIComponent(next)}`);
+  return account;
 }
 
 export async function requireMember(

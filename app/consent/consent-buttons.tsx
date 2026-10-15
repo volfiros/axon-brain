@@ -8,15 +8,15 @@ import { authClient, followAuthRedirect } from "@/lib/auth/client";
 
 export function ConsentButtons({ allowAccept }: { allowAccept: boolean }) {
   const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
+  const [pending, setPending] = useState<"allow" | "deny" | null>(null);
 
   async function answer(accept: boolean) {
-    setPending(true);
+    setPending(accept ? "allow" : "deny");
     setError(null);
     const { data, error } = await authClient.oauth2.consent({ accept });
     if (error || !followAuthRedirect(data)) {
       setError(error?.message ?? "Could not finish the request.");
-      setPending(false);
+      setPending(null);
     }
   }
 
@@ -24,11 +24,11 @@ export function ConsentButtons({ allowAccept }: { allowAccept: boolean }) {
     <div className="flex flex-col gap-4">
       <FormError message={error} />
       <div className="flex justify-end gap-2">
-        <Button variant="secondary" size="lg" shape="pill" disabled={pending} onClick={() => answer(false)}>
+        <Button variant="secondary" size="lg" shape="pill" disabled={pending !== null} loading={pending === "deny"} onClick={() => answer(false)}>
           Deny
         </Button>
         {allowAccept && (
-          <Button variant="brand" size="lg" shape="pill" disabled={pending} onClick={() => answer(true)}>
+          <Button variant="brand" size="lg" shape="pill" disabled={pending !== null} loading={pending === "allow"} onClick={() => answer(true)}>
             Allow
           </Button>
         )}

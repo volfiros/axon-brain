@@ -4,10 +4,12 @@ import Link from "next/link";
 import { EmptyState } from "@/components/empty-state";
 import { PageShell } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
+import { getAccount } from "@/lib/auth/session";
 
-export default function NotFound() {
+export default async function NotFound() {
+  const account = await getAccount().catch(() => null);
   return (
-    <PageShell>
+    <PageShell account={account ?? undefined}>
       <EmptyState
         icon={<CompassIcon />}
         title="Page not found"

@@ -3,7 +3,7 @@ import { PageSkeleton } from "@/components/page-skeleton";
 
 export default function Loading() {
   return (
-    <PageShell>
+    <PageShell account="loading">
       <PageSkeleton />
     </PageShell>
   );

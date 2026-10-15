@@ -41,6 +41,10 @@ export function verifyState(state: string): string | null {
   return Number(expires) > Date.now() / 1000 ? slug : null;
 }
 
+export function githubAppConfigured(): boolean {
+  return Boolean(process.env.GITHUB_APP_SLUG && process.env.CONNECTOR_STATE_SECRET);
+}
+
 export function installUrl(slug: string): string {
   const app = process.env.GITHUB_APP_SLUG;
   if (!app) throw new Error("GITHUB_APP_SLUG is not set");
