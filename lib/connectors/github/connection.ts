@@ -1,12 +1,12 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-import { accountsGraph, workspaceGraph, type Params } from "@/lib/graph/client";
+import { accountsGraph, workspaceGraph, type AxonGraph, type Params } from "@/lib/graph/client";
 import { ensureWorkspaceSchema } from "@/lib/graph/schema";
 import { writeBatch } from "@/lib/connectors/write";
 import { getWorkspace } from "@/lib/workspaces";
 
 import { ghAll, getInstallation, installationToken } from "./api";
-import { github } from "./index";
+import { backfillInstallation } from "./index";
 import type { GhRepo } from "./normalize";
 
 export type ConnectorStatus = "syncing" | "synced" | "error" | "disconnected";
@@ -114,15 +114,15 @@ export async function setStatus(installationId: number, status: ConnectorStatus)
   );
 }
 
-/** Full or incremental (`since`, ISO 8601) backfill of every repository the installation can read. */
-export async function syncInstallation(slug: string, installationId: number, since?: string): Promise<number> {
+/** Full or incremental (`since`, ISO 8601) backfill of the installation's repositories, or only those in `only`. */
+export async function syncInstallation(slug: string, installationId: number, since?: string, only?: string[]): Promise<number> {
   const graph = workspaceGraph(slug);
   await ensureWorkspaceSchema(graph);
   await setStatus(installationId, "syncing");
   try {
     const token = await installationToken(installationId);
     let batches = 0;
-    for await (const batch of github.backfill({ workspace: slug, graph, token, since })) {
+    for await (const batch of backfillInstallation({ workspace: slug, graph, token, since }, only)) {
       await writeBatch(graph, batch);
       batches++;
     }
@@ -132,6 +132,28 @@ export async function syncInstallation(slug: string, installationId: number, sin
     await setStatus(installationId, "error");
     throw err;
   }
+}
+
+/** Marks the repositories' Sources deleted and drops their references. */
+export async function hideRepositories(graph: AxonGraph, fullNames: string[]): Promise<void> {
+  await graph.query(
+    `UNWIND $prefixes AS prefix
+     MATCH (s:Source {connector: 'github'}) WHERE s.id STARTS WITH prefix AND s.deleted_at IS NULL
+     SET s.deleted_at = localdatetime()
+     WITH s
+     OPTIONAL MATCH (s)-[r:REFERENCES]-()
+     DELETE r`,
+    { prefixes: fullNames.map((name) => `github:${name}/`) },
+  );
+}
+
+/** Hides removed repositories and imports added ones. */
+export async function changeRepositories(slug: string, installationId: number, added: string[], removed: string[]): Promise<void> {
+  if (removed.length > 0) await hideRepositories(workspaceGraph(slug), removed);
+  const token = await installationToken(installationId);
+  const repos = (await ghAll<GhRepo>(token, "/installation/repositories")).map((r) => r.full_name);
+  await accountsGraph().query("MATCH (c:Connector {id: $id}) SET c.repo = $repo", { id: connectorId(installationId), repo: repos.join(", ") });
+  if (added.length > 0) await syncInstallation(slug, installationId, undefined, added);
 }
 
 /** Unlinks the installation from the Workspace. The App stays installed on GitHub until the owner removes it there. */

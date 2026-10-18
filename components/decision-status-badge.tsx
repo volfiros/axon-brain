@@ -17,7 +17,7 @@ const STATE_BADGES: Record<DecisionState, { label: string; variant: ComponentPro
   stale: { label: "Stale", variant: "warning" },
 };
 
-/** `current` and `stale` are saved answer statuses. `restricted` and `changed` are not statuses: render them next to the status badge when they apply. */
+/** `current` is a saved answer status. `stale` applies to answers and decisions. `restricted`, `changed` and a stale decision render next to the status badge. */
 export function DecisionStatusBadge({ status }: { status: DecisionState }) {
   const { label, variant } = STATE_BADGES[status];
   return (

@@ -84,7 +84,7 @@ RETURN d.title, collect(x.name) AS affects
 - Decisions and fact edges carry `valid_from`, `valid_to` and `recorded_at`.
 - Nothing is deleted. A new decision `SUPERSEDES` the old one, which gets a `valid_to`.
 - Queries default to current facts and can ask what was true at a past date.
-- A decision is flagged stale when the code it affects has changed a lot since it was made.
+- An accepted decision is stale when 3 or more PRs or commits the caller can see touched the code it `AFFECTS` after it was made (see Stale decisions).
 
 ## Provenance
 
@@ -255,6 +255,8 @@ The brain MCP server lives at `/w/<workspace>/mcp` (ADR 0003). The workspace com
 | `check_answer(statements)` | For each statement of an answer, whether the decisions it cites are current, superseded, flagged, not accepted, or not found or not visible |
 | `save_answer(question, statements, confirm)` | Preview, then save an answer whose statements each cite accepted decisions (see Saved answers) |
 | `answer_status(stale_only)` | Saved answers the caller can see, stale first, with why and the replacing decision |
+| `stale_decisions` | Accepted decisions whose code changed 3+ times since, with the changes and code owners |
+| `graph_algorithm(algorithm, from, to)` | `betweenness`, `components` or `shortest_path` over the caller's visible graph |
 
 - A Decision saved through the agent is `accepted` with `confirmed_by` set to the caller, because the person who made it confirmed the preview. Decisions extracted from connector Sources are `proposed` until a person accepts them.
 - Decision status is one of `proposed`, `accepted`, `superseded` or `dismissed`. Dismissed decisions are kept (with `dismissed_by` and `dismissed_at`) but recall, who_knows and impact skip them.
@@ -386,6 +388,33 @@ CALL algo.pageRank('N', 'R') YIELD node, score
 WHERE node.key STARTS WITH 'person:'
 RETURN node.key, score
 ```
+
+### Stale decisions
+
+`staleDecisions` (`lib/brain/stale.ts`) backs the `stale_decisions` tool and the Stale badge on the decisions page. The decision's own source and `IMPLEMENTED_BY` PRs do not count.
+
+```cypher
+MATCH (d:Decision {status: 'accepted'})-[:AFFECTS]->(c:CodeUnit)<-[:TOUCHES]-(s:Source)
+WHERE (s:PR OR s:Commit) AND s.deleted_at IS NULL
+  AND s.created_at > coalesce(d.valid_from, d.recorded_at)
+  AND NOT (d)-[:IMPLEMENTED_BY]->(s) AND NOT (d)-[:DERIVED_FROM]->(:Excerpt)-[:IN]->(s)
+  AND <visible(d)> AND <visible(s)>
+RETURN d.id, s.id, s.created_at, c.path
+-- grouped per decision; stale at 3 or more distinct s
+```
+
+### Graph algorithms
+
+`graph_algorithm` copies what the caller can see into a scratch graph (`withVisibleProjection` in `lib/brain/projection.ts`, same rules as PageRank above) and runs one FalkorDB algorithm there.
+
+- Nodes: Persons, visible Decisions and Sources, and CodeUnits linked to them, as `(:N {key, kind, name})`.
+- Edges: the PageRank edges plus Decision `SUPERSEDES` and `AFFECTS` CodeUnit, Source `REFERENCES` or `PART_OF` Source, and Source `TOUCHES` CodeUnit. Each is `[:R {type}]` in both directions.
+
+| Mode | Query | Shows |
+| --- | --- | --- |
+| `betweenness` | `CALL algo.betweenness({nodeLabels: ['N'], relationshipTypes: ['R']}) YIELD node, score` | People who bridge otherwise separate parts of the work |
+| `components` | `CALL algo.WCC({nodeLabels: ['N'], relationshipTypes: ['R']}) YIELD node, componentId` | Groups with decisions cut off from the largest group |
+| `shortest_path` | `CALL algo.SPpaths({sourceNode: a, targetNode: b, relTypes: ['R'], maxLen: 8, pathCount: 1}) YIELD path` | How two items connect, with the edge type of each step |
 
 ### People view
 
@@ -578,7 +607,7 @@ An Admin installs the Axon GitHub App on the Workspace's repositories from `/w/<
 - A public repository gives `public` Sources and a private one `team`.
 - `WORKED_ON {count, last_at}` is recomputed by the shared writer from `AUTHORED` and `TOUCHES`: how many of a Person's Sources touched a CodeUnit, and when last. Plane and Slack get the same edge when their Sources touch code.
 - CODEOWNERS ownership is deleted and rewritten each time the file changes. Team and email owners are skipped because they have no GitHub user to match.
-- Sync: the webhook (`/api/webhooks/github`, HMAC in `X-Hub-Signature-256`) answers 202 and writes after the response. A push to the default branch adds its commits and re-reads changed docs and CODEOWNERS, and a removed doc gets `deleted_at`. The install callback (`/api/connectors/github/callback`) needs a signed `state` naming the Workspace and a signed-in Admin, then backfills. `npm run github:backfill -- <slug> <installation id>` does the same from a shell.
+- Sync: the webhook (`/api/webhooks/github`, HMAC in `X-Hub-Signature-256`) answers 202 and writes after the response. A push to the default branch adds its commits and re-reads changed docs and CODEOWNERS, and a removed doc gets `deleted_at`. When the installation's repository selection changes (`installation_repositories`), Sources from removed repositories get `deleted_at` and lose their `REFERENCES`, and added repositories are backfilled. The install callback (`/api/connectors/github/callback`) needs a signed `state` naming the Workspace and a signed-in Admin, then backfills. `npm run github:backfill -- <slug> <installation id>` does the same from a shell.
 
 ```cypher
 MATCH (p:Person)-[w:WORKED_ON]->(c:CodeUnit {path: $path})

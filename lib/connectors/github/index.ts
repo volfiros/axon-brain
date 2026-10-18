@@ -38,6 +38,8 @@ export type GhEvent = {
   ref?: string;
   after?: string;
   commits?: { id: string; added: string[]; modified: string[]; removed: string[] }[];
+  repositories_added?: { full_name: string }[];
+  repositories_removed?: { full_name: string }[];
 };
 
 function repoPath(repo: GhRepo): string {
@@ -128,11 +130,17 @@ async function* backfillRepo(ctx: ConnectorContext, token: string, repo: GhRepo)
   yield await codeownersBatch(token, repo, tree, ctx.graph);
 }
 
-async function* backfill(ctx: ConnectorContext): AsyncIterable<Batch> {
+/** Backfills the installation's repositories, or only those in `only` (full names). */
+export async function* backfillInstallation(ctx: ConnectorContext, only?: string[]): AsyncIterable<Batch> {
   const token = ctx.token!;
   for (const repo of await ghAll<GhRepo>(token, "/installation/repositories")) {
+    if (only && !only.includes(repo.full_name)) continue;
     yield* backfillRepo(ctx, token, repo);
   }
+}
+
+function backfill(ctx: ConnectorContext): AsyncIterable<Batch> {
+  return backfillInstallation(ctx);
 }
 
 async function* pushBatches(ctx: ConnectorContext, token: string, repo: GhRepo, event: GhEvent): AsyncIterable<Batch> {
