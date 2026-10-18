@@ -644,6 +644,44 @@ MATCH (m:Message:Source {connector: 'slack'})-[r:REFERENCES]->(w:WorkItem:Source
 RETURN m.title, r.methods, w.key, w.title
 ```
 
+## Meetings (planned, not built)
+
+No meeting connector exists yet. This shape is fixed now so a transcript import, and a loader for the HERB benchmark, write the same nodes.
+
+| From | Node | Edges |
+| --- | --- | --- |
+| Meeting | `(:Source:Meeting)`, id `<connector>:<meeting id>`, `title`, `started_at`, `text` (speaker-labelled transcript) | attendees `ATTENDED`, organiser `AUTHORED`, `ABOUT` its Project when known |
+| Meeting chat line | `(:Source:Message)`, id `<connector>:<meeting id>:<n>` | `PART_OF` its Meeting, author `AUTHORED` |
+
+```
+(Person)-[:ATTENDED]->(Meeting)
+(Message)-[:PART_OF]->(Meeting)
+```
+
+- Attendees are matched to Persons like any connector identity (`external_ids`, then exact email). Transcripts name speakers only, so a speaker is matched by name among that meeting's attendees, and an ambiguous name gets no link.
+- A meeting is `restricted` and `VISIBLE_TO` the Admin Role and its attendees, the same rule as a private Slack channel.
+- A Decision quotes a transcript through `Excerpt` like any Source. Conflict hints already rank `Meeting` with messages and conversations.
+
+[HERB](https://github.com/SalesforceAIResearch/HERB) (Salesforce AI Research, CC BY-NC 4.0, research use only) is a synthetic software company whose artifacts map onto this model. Its data stays in `.private/`; only a loader and scores would be committed.
+
+| HERB artifact | Axon node |
+| --- | --- |
+| Employee (id, name, role, org) | `Person`, `MEMBER_OF` `Team` |
+| Customer | `ExternalParty` |
+| Slack message and thread reply | `Source:Message`, reply `PART_OF` its root |
+| Document | `Source:Doc`, author `AUTHORED` |
+| Pull request and review | `Source:PR`, review `Source:Message` `PART_OF` it |
+| Meeting transcript | `Source:Meeting`, participants `ATTENDED` |
+| Meeting chat | `Source:Message` `PART_OF` its Meeting |
+| Shared URL | `Source:Doc` with `url` |
+
+| HERB question | Axon tool |
+| --- | --- |
+| Content-based | `recall` |
+| People search | `who_knows` |
+| Artifact search | `recall` (Source links) |
+| Unanswerable | `recall` with no match, `check_answer` |
+
 ## Session capture
 
 A teammate's coding agent saves what a session settled with `save_session`. The agent distills the conversation on the teammate's machine and sends only structured items. Axon makes no LLM call and never stores the transcript.
