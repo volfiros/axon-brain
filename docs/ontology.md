@@ -553,15 +553,16 @@ ORDER BY w.count DESC
 | `github.com/<o>/<r>/pull/<n>` or `/issues/<n>` (any tab or fragment) | the PR `github:<o>/<r>/pull/<n>` | `url` |
 | `github.com/<o>/<r>/commit/<sha>` or `/pull/<n>/commits/<sha>` | the Commit, when exactly one in that repo starts with the SHA | `url` |
 | A bare 7 to 40 character SHA in a GitHub Source | a Commit in the same repo, same rule | `sha` |
-| `github.com/<o>/<r>/tree/<branch>[/<path>]` | the PR whose `branch` is the longest match | `url` |
+| `github.com/<o>/<r>/tree/<branch>[/<path>]` | the PR whose `branch` is the longest match, when exactly one PR has it | `url` |
 | Plane `/projects/<id>/issues/<id>`, `/work-items/<id>` or `/browse/<KEY>` | the WorkItem | `url` |
 | A key such as `BIL-1`, any case, at word boundaries | the WorkItem with that `key` | `key`, or `branch` when found in a PR branch name |
 | Slack `/archives/<channel>/p<ts>` | the Message `slack:<channel>:<ts>` | `url` |
 
 - Fenced and inline code is skipped, so example keys and URLs in code never link.
-- Only Sources already in the Workspace graph resolve. Anything else is skipped, and self-references are dropped.
+- Only Sources already in the Workspace graph resolve. Anything else is skipped, and self-references are dropped. A Plane or Slack URL resolves only to a Source stored under the same host, and any reference that matches more than one Source links to none.
+- A deleted Source references nothing, so its outgoing edges are removed.
 - There is one edge per pair with every method that found it. Each write recomputes a Source's outgoing edges from its current text and deletes the ones whose reference is gone.
-- When a Source is written, Sources that already mention its key, PR path, short SHA or permalink are re-scanned too, so it does not matter which connector syncs first.
+- When a Source is written, Sources that already mention its key, PR path, short SHA or permalink are re-scanned too, so it does not matter which connector syncs first. The writer stores a lowercased `ref_text` on each Source for this scan; Sources written before it existed join the scan on their next sync.
 - `REFERENCES` grants no access. Recall lists the Sources that a decision's Sources reference, or are referenced by, as `Related:`, and only when both ends are visible to the caller.
 
 ```cypher
