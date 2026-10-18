@@ -598,7 +598,7 @@ An Admin connects Plane and Slack once per Workspace and Axon keeps them in sync
 | Plane work item | `(:WorkItem:Source)`, id `plane:<id>`, `key` = `<identifier>-<sequence_id>` (`BIL-1`) | `PART_OF` its Project, creator `AUTHORED`, assignees `OWNS` |
 | Plane comment | `(:Source:Message)`, id `plane:<id>` | `PART_OF` its work item, author `AUTHORED` |
 | Plane page | `(:Source:Doc)`, id `plane:<id>`, checked on every sync against the graph, fetched when missing or edited since (Plane sends no page webhooks); skipped when the Plane has no Pages API | `PART_OF` its Project, owner `AUTHORED`; a private page is `restricted` to its owner |
-| Slack message | `(:Source:Message)`, id `slack:<channel>:<ts>`, `channel` = `slack:<channel id>` | author `AUTHORED`, a thread reply is `PART_OF` its root message |
+| Slack message | `(:Source:Message)`, id `slack:<channel>:<ts>`, `channel` = `slack:<channel id>`; a resumed sync reads only messages after the last sync, except in a channel with no stored messages yet (the bot joined it later), which is read from its start | author `AUTHORED`, a thread reply is `PART_OF` its root message |
 | Plane member, Slack user | `Person` | matched across tools, see below |
 
 - Every connector Source carries `connector`, `external_id`, `url`, `created_at`, `updated_at` and `synced_at`. A deleted message or work item gets `deleted_at` and stays in the graph.

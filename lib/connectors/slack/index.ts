@@ -58,6 +58,7 @@ export async function* backfillWith(api: SlackApi, ctx: ConnectorContext): Async
   const humans = new Set(users.filter(isHuman).map((user) => user.id));
 
   const oldest = epochSeconds(ctx.since);
+  const stored = oldest ? await storedChannels(ctx) : new Set<string>();
   const channels = paginate<SlackChannel>(api, "conversations.list", "channels", {
     types: "public_channel,private_channel",
     exclude_archived: "true",
@@ -72,9 +73,11 @@ export async function* backfillWith(api: SlackApi, ctx: ConnectorContext): Async
       : undefined;
     const scope = channelScope(channel, members);
 
+    // The resume point is the last sync, so a channel the bot joined after it has no stored messages and is read in full.
+    const from = oldest && stored.has(channel.id) ? oldest : undefined;
     const history = paginate<SlackMessage>(api, "conversations.history", "messages", {
       channel: channel.id,
-      ...(oldest ? { oldest } : {}),
+      ...(from ? { oldest: from } : {}),
     });
     for await (const message of history) {
       if (isConversationMessage(message)) yield messageBatch(scope, message, teamUrl);
@@ -91,6 +94,13 @@ async function collect<T>(items: AsyncIterable<T>): Promise<T[]> {
   const all: T[] = [];
   for await (const item of items) all.push(item);
   return all;
+}
+
+async function storedChannels(ctx: ConnectorContext): Promise<Set<string>> {
+  const rows = await ctx.graph.roQuery<{ channel: string }>(
+    "MATCH (s:Source) WHERE s.id STARTS WITH 'slack:' RETURN DISTINCT split(s.id, ':')[1] AS channel",
+  );
+  return new Set(rows.map((r) => r.channel));
 }
 
 type ChannelRow = { title: string; url: string; sensitivity: string; ids: string[][] };
