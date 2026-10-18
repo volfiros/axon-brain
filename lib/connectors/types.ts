@@ -27,6 +27,10 @@ export type SourceInput = {
   visible_to?: PersonRef[];
   /** false keeps the Source out of the agent's extraction queue (commits, for example). */
   extract?: boolean;
+  /** A Plane work item's key, such as "BIL-12". Other Sources refer to it by this key. */
+  key?: string;
+  /** A pull request's head branch, scanned for work-item keys. */
+  branch?: string;
 };
 
 export type ProjectInput = {
@@ -35,6 +39,8 @@ export type ProjectInput = {
   name: string;
   url?: string;
   sensitivity: Sensitivity;
+  /** A Plane project's identifier, the prefix of its work-item keys. */
+  key?: string;
 };
 
 export type CodeUnitInput = {

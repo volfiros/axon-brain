@@ -136,7 +136,7 @@
       {
         "type": "message",
         "user": "U03LENA",
-        "text": "Reminder: refund tickets still need a first reply within one business day.",
+        "text": "Reminder: refund tickets still need a first reply within one business day. Example subject: `BIL-1: refund received`.",
         "ts": "1791590000.000100"
       },
       {
@@ -180,7 +180,7 @@
       {
         "type": "message",
         "user": "U05PRIYA",
-        "text": "I will update the help center article.",
+        "text": "I will update the help center article and link it from BIL-2.",
         "ts": "1791500600.000500",
         "thread_ts": "1791500000.000200"
       }
@@ -195,7 +195,7 @@
       {
         "type": "message",
         "user": "U01MAYA",
-        "text": "Decision: no annual plans until the EU region is live.",
+        "text": "Decision: no annual plans until the EU region is live (EU-4).",
         "ts": "1791550000.000600"
       }
     ],

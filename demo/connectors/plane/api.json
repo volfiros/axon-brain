@@ -156,8 +156,8 @@
   "/projects/b2000000-0000-4000-8000-000000000001/work-items/c3000000-0000-4000-8000-000000000002/comments/": [
     {
       "id": "d4000000-0000-4000-8000-000000000003",
-      "comment_html": "<p>We decided to show the processor refund status as-is instead of mapping it to our own states.</p>",
-      "comment_stripped": "We decided to show the processor refund status as-is instead of mapping it to our own states.",
+      "comment_html": "<p>We decided to show the processor refund status as-is instead of mapping it to our own states. Discussed in https://tallyroll.slack.example/archives/C01BILLING/p1791500000000200</p>",
+      "comment_stripped": "We decided to show the processor refund status as-is instead of mapping it to our own states. Discussed in https://tallyroll.slack.example/archives/C01BILLING/p1791500000000200",
       "issue": "c3000000-0000-4000-8000-000000000002",
       "project": "b2000000-0000-4000-8000-000000000001",
       "actor": "a1000000-0000-4000-8000-000000000002",

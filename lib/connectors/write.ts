@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 
 import type { AxonGraph, Params } from "@/lib/graph/client";
 
+import { writeReferences } from "./links";
 import type {
   Batch,
   CodeUnitInput,
@@ -55,6 +56,7 @@ export async function writeBatch(graph: AxonGraph, batch: Batch, now = new Date(
   await writeCodeUnits(graph, [...(batch.codeUnits ?? []), ...codeUnitsInLinks(batch.links ?? [])]);
   await writeSources(graph, batch.sources ?? [], people, syncedAt);
   await writeLinks(graph, batch.links ?? [], people);
+  await writeReferences(graph, batch);
   await refreshWorkedOn(graph, [...new Set(people.values())]);
 }
 
