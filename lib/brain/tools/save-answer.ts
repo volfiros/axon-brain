@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { checkCitations, narrowest, writeAnswer, type AnswerStatement, type CitedDecision } from "../answers";
+import { checkCitations, narrowest, writeAnswer, type AnswerStatement } from "../answers";
+import type { CitationRow } from "../citations";
 import { requireWriter } from "../caller";
 import { defineTool } from "../tool";
 
@@ -35,7 +36,7 @@ export default defineTool({
   },
 });
 
-function renderAnswer(question: string, statements: AnswerStatement[], cited: Map<string, CitedDecision>): string {
+function renderAnswer(question: string, statements: AnswerStatement[], cited: Map<string, CitationRow>): string {
   const lines = [`Question: ${question}`];
   statements.forEach((s, i) => {
     lines.push(`${i + 1}. ${s.text}`);

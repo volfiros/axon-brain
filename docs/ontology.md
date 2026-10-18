@@ -502,7 +502,7 @@ An answer the person wants to keep is saved with `save_answer` and goes stale on
 ```
 
 - `statements` holds the text of each statement, and `CITES.statement` is the index of the statement that cites the decision.
-- Every cited decision must be visible to the caller, `accepted`, and have no visible Source that changed since it was recorded. Otherwise nothing is written and the reply names the replacing decision or says to run `review_source_changes`.
+- Every cited decision must be `current` by the same check as `check_answer` (`lib/brain/citations.ts`): visible, `accepted`, no visible accepted or superseded decision `SUPERSEDES` it, and no visible Source changed since it was recorded. Otherwise nothing is written and the reply gives each decision's verdict and replacement.
 - The Answer copies the `VISIBLE_TO` edges of its narrowest cited decision (restricted, then team, then public). Reads also require every cited decision to be visible, which covers two restricted decisions naming different people.
 - Saving the same question, statements and citations again while the caller's earlier Answer is current writes nothing. `cite_key` is the sorted `statement:decision_id` pairs.
 - The Answer, its `VISIBLE_TO` edges and its `CITES` edges are written in one query, so an Answer never exists without its audience.
@@ -522,7 +522,8 @@ MATCH (a:Answer) WHERE <visible(a)>
 OPTIONAL MATCH (a)-[:CITES]->(h:Decision) WHERE NOT <visible(h)>
 WITH u, role, a, count(h) AS hidden
 WHERE hidden = 0
-OPTIONAL MATCH (n:Decision)-[:SUPERSEDES]->(old:Decision) WHERE old.id = a.stale_decision_id AND <visible(n)>
+OPTIONAL MATCH (n:Decision)-[:SUPERSEDES]->(old:Decision)
+WHERE old.id = a.stale_decision_id AND n.status IN ['accepted', 'superseded'] AND <visible(n)>
 RETURN a.question, a.status, a.stale_reason, n.title AS replaced_by
 ORDER BY CASE a.status WHEN 'stale' THEN 0 ELSE 1 END
 ```

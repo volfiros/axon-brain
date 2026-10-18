@@ -5,17 +5,9 @@ import type { AxonGraph } from "@/lib/graph/client";
 import { FROM_CALLER, readAsCaller, visible } from "./access";
 import { day } from "./search";
 import { sourceChanged } from "./source-changes";
+import { check, citationRows, type CitationRow } from "./citations";
 import type { BrainContext } from "./tool";
 import type { Sensitivity } from "./write";
-
-export type CitedDecision = {
-  id: string;
-  title: string;
-  status: string;
-  sensitivity: Sensitivity | null;
-  sourceChanged: boolean;
-  replacedBy: { id: string; title: string } | null;
-};
 
 export type AnswerStatement = { text: string; decision_ids: string[] };
 
@@ -33,59 +25,21 @@ export type AnswerView = {
 
 const NARROWEST: Sensitivity[] = ["restricted", "team", "public"];
 
-/**
- * Checks decisions an answer would cite, inside the caller's visibility: status, the visible decision that replaced it,
- * and whether a visible Source changed since it was recorded. Decisions the caller cannot see are left out.
- */
-export async function citedDecisions(ctx: BrainContext, ids: string[]): Promise<CitedDecision[]> {
-  const rows = await readAsCaller<Omit<CitedDecision, "sourceChanged" | "replacedBy"> & {
-    changed: number;
-    replacedId: string | null;
-    replacedTitle: string | null;
-  }>(
-    ctx,
-    `${FROM_CALLER}
-     MATCH (d:Decision) WHERE d.id IN $ids AND ${visible("d")}
-     OPTIONAL MATCH (n:Decision)-[:SUPERSEDES]->(d) WHERE ${visible("n")}
-     WITH u, role, d, head(collect(n)) AS n
-     OPTIONAL MATCH (d)-[r:DERIVED_FROM]->(:Excerpt)-[:IN]->(s:Source) WHERE ${visible("s")} AND ${sourceChanged("r", "s")}
-     RETURN d.id AS id, d.title AS title, d.status AS status, d.sensitivity AS sensitivity,
-            count(DISTINCT s) AS changed, n.id AS replacedId, n.title AS replacedTitle`,
-    { ids },
-  );
-  return rows.map(({ changed, replacedId, replacedTitle, ...d }) => ({
-    ...d,
-    sourceChanged: changed > 0,
-    replacedBy: replacedId ? { id: replacedId, title: replacedTitle ?? replacedId } : null,
-  }));
-}
-
-/** Throws with every reason the statements cannot be saved; returns the cited decisions by id otherwise. */
-export async function checkCitations(ctx: BrainContext, statements: AnswerStatement[]): Promise<Map<string, CitedDecision>> {
+/** Throws with every cited decision that is not current, using check_answer's verdicts; returns the cited decisions by id otherwise. */
+export async function checkCitations(ctx: BrainContext, statements: AnswerStatement[]): Promise<Map<string, CitationRow>> {
   const ids = [...new Set(statements.flatMap((s) => s.decision_ids))];
-  const cited = new Map((await citedDecisions(ctx, ids)).map((d) => [d.id, d]));
-  const problems: string[] = [];
-  const missing = ids.filter((id) => !cited.has(id));
-  if (missing.length) problems.push(`No decision you can see has the id: ${missing.join(", ")}`);
-  for (const d of cited.values()) {
-    if (d.status === "superseded") {
-      problems.push(
-        d.replacedBy
-          ? `"${d.title}" (${d.id}) is superseded by "${d.replacedBy.title}" (${d.replacedBy.id}). Cite the current decision instead.`
-          : `"${d.title}" (${d.id}) is superseded.`,
-      );
-    } else if (d.status !== "accepted") {
-      problems.push(`"${d.title}" (${d.id}) is ${d.status}, not accepted.`);
-    } else if (d.sourceChanged) {
-      problems.push(`A source of "${d.title}" (${d.id}) changed since it was recorded. Check it with review_source_changes first.`);
-    }
+  const cited = await citationRows(ctx, ids);
+  const problems = ids.map((id) => check(id, cited.get(id))).filter((c) => c.verdict !== "current");
+  if (problems.length) {
+    throw new Error(
+      [...problems.map((c) => c.line), "Cite only current decisions. Check a flagged one with review_source_changes first."].join("\n"),
+    );
   }
-  if (problems.length) throw new Error(problems.join("\n"));
   return cited;
 }
 
 /** The narrowest audience among the cited decisions, and the decision whose VISIBLE_TO edges the answer copies. */
-export function narrowest(cited: CitedDecision[]): { sensitivity: Sensitivity; from: string } {
+export function narrowest(cited: CitationRow[]): { sensitivity: Sensitivity; from: string } {
   const sorted = [...cited].sort(
     (a, b) => NARROWEST.indexOf(a.sensitivity ?? "team") - NARROWEST.indexOf(b.sensitivity ?? "team"),
   );
@@ -97,7 +51,7 @@ export async function writeAnswer(
   ctx: BrainContext,
   question: string,
   statements: AnswerStatement[],
-  cited: CitedDecision[],
+  cited: CitationRow[],
 ): Promise<{ id: string; again: boolean }> {
   const texts = statements.map((s) => s.text);
   const cites = statements.flatMap((s, statement) => s.decision_ids.map((decisionId) => ({ statement, decisionId })));
@@ -179,7 +133,8 @@ export async function listAnswers(ctx: BrainContext, staleOnly = false, limit = 
      OPTIONAL MATCH (a)-[:CITES]->(h:Decision) WHERE NOT ${visible("h")}
      WITH u, role, a, count(h) AS hidden
      WHERE hidden = 0
-     OPTIONAL MATCH (n:Decision)-[:SUPERSEDES]->(old:Decision) WHERE old.id = a.stale_decision_id AND ${visible("n")}
+     OPTIONAL MATCH (n:Decision)-[:SUPERSEDES]->(old:Decision)
+     WHERE old.id = a.stale_decision_id AND n.status IN ['accepted', 'superseded'] AND ${visible("n")}
      WITH u, role, a, head(collect(n)) AS n
      MATCH (a)-[c:CITES]->(d:Decision)
      OPTIONAL MATCH (saver:Person)-[:SAVED]->(a)
