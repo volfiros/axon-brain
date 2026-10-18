@@ -57,6 +57,7 @@ export function DecisionsTable({
                   <DecisionStatusBadge status={decision.status} />
                   {decision.restricted && <DecisionStatusBadge status="restricted" />}
                   {decision.sourceChanges.length > 0 && <DecisionStatusBadge status="changed" />}
+          {decision.codeChanges.length > 0 && <DecisionStatusBadge status="stale" />}
                 </div>
               </TableCell>
               <TableCell hideOnMobile className="text-secondary-foreground">
@@ -95,6 +96,7 @@ function DecisionDetail({ decision, slug, canWrite }: { decision: DecisionView; 
           <DecisionStatusBadge status={decision.status} />
           {decision.restricted && <DecisionStatusBadge status="restricted" />}
           {decision.sourceChanges.length > 0 && <DecisionStatusBadge status="changed" />}
+          {decision.codeChanges.length > 0 && <DecisionStatusBadge status="stale" />}
         </div>
         <SheetTitle>{decision.title}</SheetTitle>
         <SheetDescription>{decision.statement}</SheetDescription>
@@ -147,6 +149,22 @@ function DecisionDetail({ decision, slug, canWrite }: { decision: DecisionView; 
                 />
               </div>
             )}
+          </Field>
+        )}
+        {decision.codeChanges.length > 0 && (
+          <Field label="Code changed since">
+            {decision.codeChanges.map((change) => (
+              <span key={`${change.title}-${change.date}`}>
+                {change.date}{" "}
+                {change.url ? (
+                  <a href={change.url} target="_blank" rel="noreferrer" className="underline-offset-4 hover:underline">
+                    {change.title}
+                  </a>
+                ) : (
+                  change.title
+                )}
+              </span>
+            ))}
           </Field>
         )}
         {decision.supersedes.length > 0 && (

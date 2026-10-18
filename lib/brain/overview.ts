@@ -3,6 +3,7 @@ import type { Member } from "@/lib/workspaces";
 
 import { FROM_CALLER, readAsCaller, restrictedNote, visible } from "./access";
 import { day } from "./search";
+import { staleDecisions } from "./stale";
 import { decisionDetails } from "./tools/recall";
 import type { BrainContext } from "./tool";
 
@@ -25,6 +26,7 @@ export type DecisionView = {
   sources: { quote: string; title: string; url: string | null }[];
   hiddenSources: string;
   sourceChanges: { title: string; change: "edited" | "deleted"; date: string }[];
+  codeChanges: { title: string; url: string | null; date: string }[];
   supersedes: string[];
   supersededBy: string[];
 };
@@ -50,7 +52,9 @@ export async function listDecisions(ctx: BrainContext, statuses: DecisionStatus[
     { statuses },
   );
   if (rows.length === 0) return [];
-  const details = await decisionDetails(ctx, rows.map((r) => r.id));
+  const ids = rows.map((r) => r.id);
+  const [details, stale] = await Promise.all([decisionDetails(ctx, ids), staleDecisions(ctx, ids)]);
+  const staleById = new Map(stale.map((d) => [d.id, d.changes]));
   const views: DecisionView[] = [];
   for (const row of rows) {
     const d = details.get(row.id);
@@ -72,6 +76,7 @@ export async function listDecisions(ctx: BrainContext, statuses: DecisionStatus[
       sources: d.sources.map(({ quote, title, url }) => ({ quote, title, url })),
       hiddenSources: await restrictedNote(ctx, d.hiddenSources, "source"),
       sourceChanges: d.sourceChanges.map((c) => ({ title: c.title, change: c.change, date: day(c.at) })),
+      codeChanges: (staleById.get(d.id) ?? []).map(({ title, url, date }) => ({ title, url, date })),
       supersedes: d.supersedes,
       supersededBy: d.supersededBy,
     });

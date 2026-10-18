@@ -1,10 +1,7 @@
 import { withScratchGraph } from "@/lib/graph/client";
 import { FROM_CALLER, readAsCaller, visible } from "./access";
+import { loadProjection, MAX_EDGES, MAX_NODES } from "./projection";
 import type { BrainContext } from "./tool";
-
-const MAX_NODES = 3000;
-const MAX_EDGES = 20000;
-const BATCH = 5000;
 
 const NODES = `
   MATCH (p:Person)
@@ -41,16 +38,7 @@ export async function personCentrality(ctx: BrainContext): Promise<Map<string, n
   if (edges.length === 0 || keys.length > MAX_NODES || edges.length > MAX_EDGES) return null;
 
   const rows = await withScratchGraph(ctx.graph.name, async (scratch) => {
-    await scratch.query("UNWIND $keys AS key CREATE (:N {key: key})", { keys });
-    await scratch.query("CREATE INDEX FOR (n:N) ON (n.key)");
-    for (let i = 0; i < edges.length; i += BATCH) {
-      await scratch.query(
-        `UNWIND $pairs AS pair
-         MATCH (a:N {key: pair[0]}), (b:N {key: pair[1]})
-         CREATE (a)-[:R]->(b), (b)-[:R]->(a)`,
-        { pairs: edges.slice(i, i + BATCH).map((e) => [e.a, e.b]) },
-      );
-    }
+    await loadProjection(scratch, keys.map((key) => ({ key })), edges);
     return scratch.roQuery<{ key: string; score: number }>(
       `CALL algo.pageRank('N', 'R') YIELD node, score
        WHERE node.key STARTS WITH 'person:'

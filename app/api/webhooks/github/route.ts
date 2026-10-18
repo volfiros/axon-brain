@@ -2,7 +2,7 @@ import { after } from "next/server";
 
 import { eventNeedsToken, github, type GhEvent } from "@/lib/connectors/github";
 import { installationToken } from "@/lib/connectors/github/api";
-import { setStatus, workspaceForInstallation } from "@/lib/connectors/github/connection";
+import { changeRepositories, setStatus, workspaceForInstallation } from "@/lib/connectors/github/connection";
 import { writeBatch } from "@/lib/connectors/write";
 import { workspaceGraph } from "@/lib/graph/client";
 
@@ -26,6 +26,17 @@ export async function POST(req: Request) {
 
   const slug = await workspaceForInstallation(installationId);
   if (!slug) return Response.json({ ignored: "Installation is not connected to a workspace" }, { status: 202 });
+
+  if (name === "installation_repositories") {
+    const added = (event.repositories_added ?? []).map((r) => r.full_name);
+    const removed = (event.repositories_removed ?? []).map((r) => r.full_name);
+    after(() =>
+      changeRepositories(slug, installationId, added, removed).catch((err) =>
+        console.error(`GitHub repository change for ${slug} failed:`, err),
+      ),
+    );
+    return Response.json({ ok: true }, { status: 202 });
+  }
 
   const headers = new Headers(req.headers);
   // GitHub times out webhooks after 10 seconds, so fetching and writing happen after the response.
