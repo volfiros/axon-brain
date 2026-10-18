@@ -62,4 +62,26 @@ describe("linkIdentity", () => {
     assert.equal(await linkIdentity(admin.graph, admin.caller.personId, "slack:U100"), "taken");
     assert.equal(await authorOf(`slack:C100:${ts}`), member.caller.personId);
   });
+
+  test("linking Slack also absorbs a separate Plane person with the same email", async () => {
+    await writeBatch(admin.graph, { people: [{ connector: "plane", external_id: "u-1", name: "Mel P", email: "mel@acme.test" }] });
+    await writeBatch(admin.graph, { people: [{ connector: "slack", external_id: "U100", name: "Mel S" }] });
+    await admin.graph.query("MATCH (p:Person) WHERE 'slack:U100' IN p.external_ids SET p.email = 'mel@acme.test'");
+
+    assert.equal(await linkIdentity(member.graph, member.caller.personId, "slack:U100"), "linked");
+
+    const people = await admin.graph.query<{ id: string; ids: string[] }>(
+      "MATCH (p:Person) WHERE p.email = 'mel@acme.test' RETURN p.id AS id, p.external_ids AS ids",
+    );
+    assert.deepEqual(people, [{ id: member.caller.personId, ids: ["slack:U100", "plane:u-1"] }]);
+  });
+
+  test("a member with the same email is never absorbed", async () => {
+    await admin.graph.query("MATCH (p:Person {id: $id}) SET p.email = 'mel@acme.test'", { id: admin.caller.personId });
+    await writeBatch(admin.graph, { people: [{ connector: "slack", external_id: "U100", name: "Mel S", email: "mel@acme.test" }] });
+    await linkIdentity(member.graph, member.caller.personId, "slack:U100");
+    const [row] = await admin.graph.query<{ n: number }>("MATCH (p:Person {id: $id}) RETURN count(p) AS n", { id: admin.caller.personId });
+    assert.equal(row.n, 1);
+  });
 });
+

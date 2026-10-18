@@ -11,15 +11,33 @@ export async function linkIdentity(graph: AxonGraph, memberId: string, key: stri
     "MATCH (p:Person) WHERE $key IN p.external_ids RETURN p.id AS id, p.account_id AS accountId LIMIT 1",
     { key },
   );
-  if (holder?.id === memberId) return "already linked";
-  if (holder?.accountId) return "taken";
+  if (holder?.accountId && holder.id !== memberId) return "taken";
 
+  let result: LinkResult = "already linked";
   if (!holder) {
     await graph.query("MATCH (m:Person {id: $memberId}) SET m.external_ids = coalesce(m.external_ids, []) + $key", { memberId, key });
-    return "linked";
+    result = "linked";
+  } else if (holder.id !== memberId) {
+    await absorb(graph, memberId, holder.id);
+    result = "linked";
   }
+  await absorbSameEmail(graph, memberId);
+  return result;
+}
 
-  const params = { memberId, holderId: holder.id };
+// The email came from Slack or Plane, which verify it; Axon sign-up does not, so only imported Persons are absorbed.
+async function absorbSameEmail(graph: AxonGraph, memberId: string) {
+  const rows = await graph.query<{ id: string }>(
+    `MATCH (m:Person {id: $memberId}) WHERE m.email IS NOT NULL
+     MATCH (p:Person {email: m.email}) WHERE p.id <> m.id AND p.account_id IS NULL
+     RETURN p.id AS id`,
+    { memberId },
+  );
+  for (const { id } of rows) await absorb(graph, memberId, id);
+}
+
+async function absorb(graph: AxonGraph, memberId: string, holderId: string) {
+  const params = { memberId, holderId };
   for (const type of OUTGOING) {
     await graph.query(
       `MATCH (h:Person {id: $holderId})-[r:${type}]->(x), (m:Person {id: $memberId})
@@ -53,7 +71,6 @@ export async function linkIdentity(graph: AxonGraph, memberId: string, key: stri
      DETACH DELETE h`,
     params,
   );
-  return "linked";
 }
 
 export async function linkedIdentities(graph: AxonGraph, personId: string): Promise<string[]> {
