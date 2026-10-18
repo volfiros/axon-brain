@@ -57,7 +57,7 @@ test("Dot segments are resolved and cannot climb above the root", () => {
   assert.equal(safeNextPath("/w/acme/../other"), "/w/other");
 });
 
-test.todo("Dot segments cannot resolve into a protocol-relative path", () => {
+test("Dot segments cannot resolve into a protocol-relative path", () => {
   for (const next of ["/.//evil.com", "/a/..//evil.com"]) {
     assert.ok(!safeNextPath(next).startsWith("//"), next);
   }

@@ -55,7 +55,11 @@ test("A request with a missing header or no secret fails", () => {
   assert.equal(verifySlackSignature(body, ts, sign(ts, body, ""), "", now), false);
 });
 
-test.todo("A request with a non-numeric timestamp fails even when its signature matches");
+test("A request with a non-numeric timestamp fails even when its signature matches", () => {
+  for (const bad of ["soon", "", "NaN", "Infinity"]) {
+    assert.equal(verifySlackSignature(body, bad, sign(bad), SECRET, now), false, bad);
+  }
+});
 
 test("The connector reads the signature and timestamp headers and the configured secret", () => {
   const stamp = String(Math.floor(Date.now() / 1000));

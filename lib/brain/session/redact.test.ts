@@ -99,12 +99,12 @@ test("Git commit hashes, UUIDs and kebab-case names are not read as random token
   }
 });
 
-test.todo("Rejects an Authorization header with a short Basic or Token credential", () => {
+test("Rejects an Authorization header with a short Basic or Token credential", () => {
   assert.deepEqual(rejectedAs("Authorization: Basic dXNlcjpwYXNz"), ["authorization header"]);
   assert.deepEqual(rejectedAs("Authorization: Token abcdefghij"), ["authorization header"]);
 });
 
-test.todo("Rejects a connection string with a password and no username", () => {
+test("Rejects a connection string with a password and no username", () => {
   assert.deepEqual(rejectedAs("redis://:hunter2@cache.example.com"), ["credentials in a URL"]);
 });
 

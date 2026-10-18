@@ -100,7 +100,7 @@ describe("writeBatch", () => {
     assert.ok(first.edges.some((e) => e.includes('"type":"REFERENCES"')));
   });
 
-  test.todo("bug: a PR's first write leaves its branch out of ref_text, so replaying it changes the graph", async () => {
+  test("replaying a PR batch leaves the graph unchanged", async () => {
     await writeBatch(graph, pullRequest("feat/bil-1-second-approver"), NOW);
     const first = await snapshot(graph);
     await writeBatch(graph, pullRequest("feat/bil-1-second-approver"), NOW);
@@ -119,7 +119,7 @@ describe("writeBatch", () => {
     ]);
   });
 
-  test.todo("bug: a PR written before its work item never links to it by branch name", async () => {
+  test("a PR written before its work item links to it by branch name", async () => {
     await writeBatch(graph, pullRequest("feat/bil-1-second-approver"), NOW);
     await writeBatch(graph, planeBatch(), NOW);
     assert.deepEqual(await references(graph), [{ from: "github:acme/pay/pull/7", to: "plane:wi-1", methods: ["branch"] }]);

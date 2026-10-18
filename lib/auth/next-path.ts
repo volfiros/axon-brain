@@ -3,5 +3,7 @@ export function safeNextPath(next: string | null | undefined, fallback = "/onboa
   if (!next || !/^\/(?![/\\])/.test(next)) return fallback;
   const base = "http://axon.local";
   const url = new URL(next, base);
-  return url.origin === base ? `${url.pathname}${url.search}${url.hash}` : fallback;
+  // Dot segments can collapse "/.//evil.com" into "//evil.com", which a browser reads as another host.
+  if (url.origin !== base || /^\/[/\\]/.test(url.pathname)) return fallback;
+  return `${url.pathname}${url.search}${url.hash}`;
 }

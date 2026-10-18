@@ -241,11 +241,12 @@ async function storeLinkProperties(graph: AxonGraph, batch: Batch) {
   }));
   if (sources.length > 0) {
     // ref_text is stored lowercased once here, so the referrer scan does not recompute it for every Source.
+    // It reads r.branch: a later SET in the same query still sees the old s.branch on FalkorDB.
     await graph.query(
       `UNWIND $rows AS r
        MATCH (s:Source {id: r.id})
        SET s.key = coalesce(r.key, s.key), s.branch = coalesce(r.branch, s.branch)
-       SET s.ref_text = toLower(coalesce(s.title, '') + ' ' + coalesce(s.text, '') + ' ' + coalesce(s.branch, ''))`,
+       SET s.ref_text = toLower(coalesce(s.title, '') + ' ' + coalesce(s.text, '') + ' ' + coalesce(r.branch, s.branch, ''))`,
       { rows: sources },
     );
   }
