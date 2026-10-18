@@ -445,8 +445,8 @@ MATCH (u:Person {id: $personId})-[:HAS_ROLE]->(role:Role)
 MATCH (d:Decision {status: 'superseded'})
 WHERE d.valid_to >= localdatetime($since) AND d.valid_to < localdatetime($until) AND <visible(d)>
 OPTIONAL MATCH (n:Decision)-[:SUPERSEDES]->(d) WHERE n.status IN ['accepted', 'superseded'] AND <visible(n)>
-WITH d, collect(DISTINCT n.id) AS by
-RETURN 'decision superseded' AS kind, d.id, d.title, d.valid_to AS at, by[0]
+WITH d, collect(DISTINCT n.id) AS replacedBy
+RETURN 'decision superseded' AS kind, d.id, d.title, d.valid_to AS at, replacedBy[0]
 ```
 
 ### Check answer
