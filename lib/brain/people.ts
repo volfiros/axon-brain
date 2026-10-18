@@ -73,8 +73,8 @@ export type RankedPerson = {
   reasons: string[];
 };
 
-/** The top 5 people for a topic, scored from the signals the caller can see. Null when the topic has no searchable words. */
-export async function rankPeople(ctx: BrainContext, topic: string): Promise<RankedPerson[] | null> {
+/** The top `limit` people for a topic, scored from the signals the caller can see. Null when the topic has no searchable words. */
+export async function rankPeople(ctx: BrainContext, topic: string, limit = 5): Promise<RankedPerson[] | null> {
   const { stems } = searchTerms(topic);
   if (stems.length === 0) return null;
   const signals = await readAsCaller<Signal>(ctx, SCORING, { stems });
@@ -106,7 +106,7 @@ export async function rankPeople(ctx: BrainContext, topic: string): Promise<Rank
     person.breakdown.centrality = points;
     person.reasons.push(`central among the people, decisions and sources you can see (+${points})`);
   }
-  return [...people.values()].sort((a, b) => b.score - a.score).slice(0, 5);
+  return [...people.values()].sort((a, b) => b.score - a.score).slice(0, limit);
 }
 
 function logCentralityError(err: unknown): null {

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { check, SEVERITY, type CitationRow } from "./citations";
+import { check, quoteFound, SEVERITY, type CitationRow } from "./citations";
 
 function row(extra: Partial<CitationRow> = {}): CitationRow {
   return { id: "dec_1", title: "Manual refunds", status: "accepted", sensitivity: "team", replacedBy: [], changedSources: 0, ...extra };
@@ -60,4 +60,11 @@ test("An accepted decision with unchanged sources is current", () => {
 
 test("SEVERITY lists every verdict from worst to current", () => {
   assert.deepEqual([...SEVERITY], ["not_found_or_not_visible", "superseded", "flagged", "not_accepted", "current"]);
+});
+
+test("A quote matches word for word, ignoring case, spacing and quote marks", () => {
+  const texts = ["Let's just drop  duplicates by event id.", "Other text"];
+  assert.equal(quoteFound("let’s just drop duplicates by event id", texts), true);
+  assert.equal(quoteFound("drop duplicates by message id", texts), false);
+  assert.equal(quoteFound("  ", texts), false);
 });

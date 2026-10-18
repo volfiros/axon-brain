@@ -31,6 +31,27 @@ export async function citationRows(ctx: BrainContext, ids: string[]): Promise<Ma
   return new Map(rows.map((r) => [r.id, r]));
 }
 
+/** Visible excerpt and source text behind each cited decision. */
+export async function citedTexts(ctx: BrainContext, ids: string[]): Promise<Map<string, string[]>> {
+  const rows = await readAsCaller<{ id: string; texts: string[] }>(
+    ctx,
+    `${FROM_CALLER}
+     MATCH (d:Decision)-[:DERIVED_FROM]->(ex:Excerpt)-[:IN]->(s:Source)
+     WHERE d.id IN $ids AND ${visible("d")} AND ${visible("s")}
+     RETURN d.id AS id, collect(DISTINCT ex.text) + collect(DISTINCT s.text) AS texts`,
+    { ids },
+  );
+  return new Map(rows.map((r) => [r.id, r.texts]));
+}
+
+const normalize = (text: string) => text.toLowerCase().replace(/[“”"‘’']/g, "").replace(/\s+/g, " ").trim();
+
+/** Whether `quote` appears word for word, ignoring case, spacing and quote marks, in any of `texts`. */
+export function quoteFound(quote: string, texts: string[]): boolean {
+  const wanted = normalize(quote);
+  return wanted.length > 0 && texts.some((t) => normalize(t).includes(wanted));
+}
+
 /** An accepted decision with a visible superseder counts as superseded. */
 export function check(id: string, row: CitationRow | undefined): { verdict: Verdict; line: string } {
   if (!row) return { verdict: "not_found_or_not_visible", line: `${id}: not_found_or_not_visible` };
