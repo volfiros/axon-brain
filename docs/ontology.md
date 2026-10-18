@@ -252,11 +252,13 @@ The brain MCP server lives at `/w/<workspace>/mcp` (ADR 0003). The workspace com
 | `review_proposals(action)` | List proposed decisions, or accept (optionally edited) or dismiss them |
 | `review_source_changes(action, ids)` | List accepted decisions whose Source was edited or deleted since it was recorded, and possible conflicts ranked by source, or confirm that they still hold |
 | `changes_since(since, until)` | Decisions created, superseded or flagged, proposals accepted, and Sources edited or deleted in a time window, paged |
-| `check_answer(statements)` | For each statement of an answer, whether the decisions it cites are current, superseded, flagged, not accepted, or not found or not visible |
+| `check_answer(statements)` | For each statement of an answer, whether the decisions it cites are current, superseded, flagged, not accepted, or not found or not visible, and whether its optional quote appears in a visible Excerpt or Source behind them |
 | `save_answer(question, statements, confirm)` | Preview, then save an answer whose statements each cite accepted decisions (see Saved answers) |
 | `answer_status(stale_only)` | Saved answers the caller can see, stale first, with why and the replacing decision |
 | `stale_decisions` | Accepted decisions whose code changed 3+ times since, with the changes and code owners |
 | `graph_algorithm(algorithm, from, to)` | `betweenness`, `components` or `shortest_path` over the caller's visible graph |
+| `knowledge_risk(topic \| person)` | Topic: the who_knows scores as shares and the bus factor (fewest people holding over half, PageRank points excluded). Person: visible items they alone `OWNS` or `WORKED_ON` |
+| `list_questions(topic)` | Open `Question`s the caller can see, newest first, with who asked and in which Source |
 
 - A Decision saved through the agent is `accepted` with `confirmed_by` set to the caller, because the person who made it confirmed the preview. Decisions extracted from connector Sources are `proposed` until a person accepts them.
 - Decision status is one of `proposed`, `accepted`, `superseded` or `dismissed`. Dismissed decisions are kept (with `dismissed_by` and `dismissed_at`) but recall, who_knows and impact skip them.

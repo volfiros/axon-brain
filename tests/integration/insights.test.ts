@@ -3,7 +3,10 @@ import { beforeEach, describe, test } from "node:test";
 
 import { staleDecisions } from "@/lib/brain/stale";
 import type { BrainContext } from "@/lib/brain/tool";
+import checkAnswer from "@/lib/brain/tools/check-answer";
 import graphAlgorithm from "@/lib/brain/tools/graph-algorithm";
+import knowledgeRisk from "@/lib/brain/tools/knowledge-risk";
+import listQuestions from "@/lib/brain/tools/list-questions";
 import { hideRepositories } from "@/lib/connectors/github/connection";
 import type { Batch, Sensitivity } from "@/lib/connectors/types";
 import { writeBatch } from "@/lib/connectors/write";
@@ -30,11 +33,16 @@ beforeEach(async () => {
 
 const PATH = "src/refunds.ts";
 
-function pr(number: number, createdAt: string, opts: { sensitivity?: Sensitivity; text?: string; repo?: string } = {}): Batch {
+function pr(
+  number: number,
+  createdAt: string,
+  opts: { sensitivity?: Sensitivity; text?: string; repo?: string; author?: string } = {},
+): Batch {
   const repo = opts.repo ?? "acme/pay";
+  const author = opts.author ?? "42";
   const id = `${repo}/pull/${number}`;
   return {
-    people: [{ connector: "github", external_id: "42", name: "Gil Hub" }],
+    people: [{ connector: "github", external_id: author, name: author === "42" ? "Gil Hub" : `User ${author}` }],
     sources: [
       {
         connector: "github",
@@ -48,7 +56,7 @@ function pr(number: number, createdAt: string, opts: { sensitivity?: Sensitivity
       },
     ],
     links: [
-      { from: { kind: "person", connector: "github", external_id: "42" }, rel: "AUTHORED", to: { kind: "source", connector: "github", external_id: id } },
+      { from: { kind: "person", connector: "github", external_id: author }, rel: "AUTHORED", to: { kind: "source", connector: "github", external_id: id } },
       { from: { kind: "source", connector: "github", external_id: id }, rel: "TOUCHES", to: { kind: "codeunit", repo, path: PATH } },
     ],
   };
@@ -142,5 +150,48 @@ describe("hideRepositories", () => {
     ]);
     const [refs] = await admin.graph.query<{ n: number }>("MATCH ()-[r:REFERENCES]->() RETURN count(r) AS n");
     assert.equal(refs.n, 0);
+  });
+});
+
+describe("check_answer quotes", () => {
+  test("a quote is checked word for word against the cited decision's source", async () => {
+    const { itemId } = await saveItem(admin, {
+      title: "Skip duplicate webhook events",
+      statement: "Webhook handlers skip events already processed.",
+      excerpt: "let's just drop duplicates by event id",
+    });
+    const ask = (quote: string) =>
+      callTool(checkAnswer, { statements: [{ text: "Duplicates are dropped.", decision_ids: [itemId], quote }] }, admin);
+    assert.match(await ask("drop duplicates by event id"), /Every statement is backed/);
+    const wrong = await ask("drop duplicates by message id");
+    assert.match(wrong, /current, quote not found/);
+    assert.match(wrong, /Fix or drop/);
+  });
+});
+
+describe("knowledge_risk", () => {
+  test("a file one person changed has bus factor 1, and appears in that person's risk list until someone else works on it", async () => {
+    await writeBatch(admin.graph, pr(7, "2026-10-02T00:00:00Z"));
+    await writeBatch(admin.graph, pr(8, "2026-10-03T00:00:00Z"));
+    assert.match(await callTool(knowledgeRisk, { topic: PATH }, admin), /^Bus factor for "src\/refunds.ts": 1 \(one person holds most of it\)\.\n- Gil Hub \(not on Axon\): 100%$/);
+    assert.equal(await callTool(knowledgeRisk, { person: "Gil Hub" }, admin), `If Gil Hub leaves, these have no other owner or contributor:\n- CodeUnit: ${PATH}`);
+
+    await writeBatch(admin.graph, pr(9, "2026-10-04T00:00:00Z", { author: "43" }));
+    assert.equal(await callTool(knowledgeRisk, { person: "Gil Hub" }, admin), "Nothing you can see depends on Gil Hub alone.");
+  });
+});
+
+describe("list_questions", () => {
+  test("lists open questions the caller can see, filtered by topic", async () => {
+    await admin.graph.query(
+      `MATCH (admin:Role {name: 'Admin'}), (m:Role {name: 'Member'})
+       CREATE (q1:Question {id: 'q_1', text: 'Should refunds over $500 need two approvers?', status: 'open', recorded_at: localdatetime()}),
+              (q1)-[:VISIBLE_TO]->(m), (q1)-[:VISIBLE_TO]->(admin),
+              (:Question {id: 'q_2', text: 'Which region hosts EU data?', status: 'open', recorded_at: localdatetime()})-[:VISIBLE_TO]->(admin)`,
+    );
+    assert.match(await callTool(listQuestions, {}, admin), /^2 open questions:/);
+    assert.match(await callTool(listQuestions, { topic: "refunds" }, member), /^1 open question:\n- Should refunds over \$500 need two approvers\? \(q_1\)/);
+    assert.equal(await callTool(listQuestions, { topic: "region" }, member), 'No open question you can see about "region".');
+    assert.equal(await callTool(listQuestions, {}, guest), "No open questions you can see.");
   });
 });
