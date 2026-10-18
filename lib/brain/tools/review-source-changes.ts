@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { FROM_CALLER, readAsCaller, visible } from "../access";
 import { requireWriter } from "../caller";
+import { possibleConflicts } from "../conflicts";
 import { confirmStillHolds, sourceChanged } from "../source-changes";
 import { defineTool, type BrainContext } from "../tool";
 import { decisionDetails, sourceChangeLine } from "./recall";
@@ -8,7 +9,8 @@ import { decisionDetails, sourceChangeLine } from "./recall";
 export default defineTool({
   name: "review_source_changes",
   description:
-    "Lists accepted decisions whose source was edited or deleted after the decision was recorded, or confirms that some still hold. " +
+    "Lists accepted decisions whose source was edited or deleted after the decision was recorded, and possible conflicts between " +
+    "accepted decisions on the same thing, or confirms that some still hold. " +
     "Only confirm after the user says the decision still holds. If it no longer holds, use supersede instead.",
   inputSchema: z.object({
     action: z.enum(["list", "still_holds"]),
@@ -34,6 +36,28 @@ export default defineTool({
 });
 
 async function list(ctx: BrainContext, limit: number): Promise<string> {
+  const [changed, conflicts] = await Promise.all([changedSources(ctx, limit), possibleConflicts(ctx)]);
+  if (conflicts.length === 0) return changed;
+  return [
+    changed,
+    `${Math.min(limit, conflicts.length)} of ${conflicts.length} possible conflicts, accepted decisions on the same thing. ` +
+      "Read both and tell the user if they disagree. Only a person settles it, with supersede or save_session.",
+    ...conflicts.slice(0, limit).map((c) => {
+      const [a, b] = c.decisions;
+      const likely = c.decisions.find((d) => d.id === c.likely?.id);
+      return [
+        `- Both on ${c.targets.join(", ")}:`,
+        `  ${a.title} (${a.id}, from ${a.source}): ${a.statement}`,
+        `  ${b.title} (${b.id}, from ${b.source}): ${b.statement}`,
+        likely
+          ? `  If they disagree, ${likely.title} (${likely.id}) is more likely to hold: ${c.likely?.reason === "source" ? "it comes from a stronger source" : "same source rank, and it is newer"}.`
+          : "  Neither is more likely to hold: same source rank and date.",
+      ].join("\n");
+    }),
+  ].join("\n");
+}
+
+async function changedSources(ctx: BrainContext, limit: number): Promise<string> {
   const rows = await readAsCaller<{ id: string }>(
     ctx,
     `${FROM_CALLER}

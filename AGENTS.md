@@ -45,6 +45,7 @@ Write self-explanatory code with no comments by default. Add a one-line comment 
 
 - Filter by access inside the Cypher query, starting from the requesting user. The LLM only ever sees rows that passed the filter.
 - Agent and API reads go through `GRAPH.RO_QUERY` (`ro_query` in the client). Writes go through application code paths only.
+- The only exception: a read tool may build a temporary algorithm projection (`withScratchGraph`, `<graph>__algo_<uuid>`) from rows the caller can see, and always deletes it.
 - One graph per workspace for isolation between companies.
 
 ## Schema changes

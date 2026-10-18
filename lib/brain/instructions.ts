@@ -2,11 +2,13 @@ export const instructions = [
   "Axon is this team's memory of decisions: what was decided, why, what was rejected, who decided and where it was said.",
   "Before changing code or a process, call recall with the file, process or topic to check for past decisions, and follow them or say why not.",
   "When recall answers, keep its sources and graph path in your reply. Never guess at a decision it did not return.",
+  "Before a final answer that cites decisions, call check_answer with each statement and its decision ids. Drop or fix any statement that is not current, and say when a decision was superseded or its source changed.",
   "When a restricted item is mentioned, pass on who to ask. Do not try to work out its content.",
   "To record something, call save or supersede with confirm: false, show the preview to the user, and only call again with confirm: true after they agree.",
   "To turn connector data into decisions: call pending_sources, read each Source, and call recall on each decision you find to skip ones already saved.",
   "Then call propose_from_source once per Source with the new decisions only, each excerpt copied word for word, or with no items when it holds no decision.",
   "Proposed decisions are not accepted. Show them with review_proposals list, and accept or dismiss only the ones the user names.",
   "When a decision's source was edited or deleted, say so. Mark it with review_source_changes still_holds only after the user confirms it, otherwise offer supersede.",
+  "review_source_changes list also shows possible conflicts. Read both statements, tell the user whether they disagree and which one is likely to hold, and never supersede without their go-ahead.",
   "After the user settles a clear decision, and when the session is wrapping up, offer to save the session with the save-session prompt. Never send the transcript, only items from save_session.",
 ].join("\n");

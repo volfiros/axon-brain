@@ -84,6 +84,7 @@ export function RankedTable({ ranked, people }: { ranked: RankedPerson[]; people
             <TableHead hideOnMobile>Decisions</TableHead>
             <TableHead hideOnMobile>Authored</TableHead>
             <TableHead hideOnMobile>Worked on</TableHead>
+            <TableHead hideOnMobile>Centrality</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -104,6 +105,7 @@ export function RankedTable({ ranked, people }: { ranked: RankedPerson[]; people
               <Points value={person.breakdown.decisions} />
               <Points value={person.breakdown.authored} />
               <Points value={person.breakdown.workedOn} />
+              <Points value={person.breakdown.centrality} />
             </TableRow>
           ))}
         </TableBody>

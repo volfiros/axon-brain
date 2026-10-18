@@ -9,6 +9,11 @@ export function visible(alias: string): string {
   return `((${alias})-[:VISIBLE_TO]->(u) OR (${alias})-[:VISIBLE_TO]->(role) OR (${alias})-[:VISIBLE_TO]->(:Team)<-[:MEMBER_OF]-(u))`;
 }
 
+// Projects and Plane work items carry VISIBLE_TO; nodes without any (CodeUnit, Process, Topic) are shown as before.
+export function shown(alias: string): string {
+  return `(NOT (${alias})-[:VISIBLE_TO]->() OR ${visible(alias)})`;
+}
+
 export function readAsCaller<T = Row>(ctx: BrainContext, cypher: string, params: Params = {}): Promise<T[]> {
   return ctx.graph.roQuery<T>(cypher, { ...params, personId: ctx.caller.personId });
 }

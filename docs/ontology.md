@@ -224,7 +224,7 @@ Teams start from a template and rename or add types. Every custom type maps to a
 
 ## Agent tools (brain MCP server)
 
-The brain MCP server lives at `/w/<workspace>/mcp` (ADR 0003). The workspace comes only from the URL. Reads use `roQuery`; `save` and `supersede` write through `lib/brain/write.ts`.
+The brain MCP server lives at `/w/<workspace>/mcp` (ADR 0003). The workspace comes only from the URL. Reads use `roQuery`; `save` and `supersede` write through `lib/brain/write.ts`. The one write a read tool makes is the temporary PageRank projection in `who_knows`, which lives in its own graph and is always deleted.
 
 | Tool | Purpose |
 | --- | --- |
@@ -233,14 +233,14 @@ The brain MCP server lives at `/w/<workspace>/mcp` (ADR 0003). The workspace com
 | `save(item, confirm)` | Preview a Decision, Constraint, Assumption or context note; writes only with `confirm: true` |
 | `save_session(step, session, items)` | Preview, then save a coding session's distilled decisions, constraints, assumptions, questions and notes (see Session capture) |
 | `supersede(old_id, item, confirm)` | Replace a decision and keep the old one as history |
-| `who_knows(topic)` | People ranked by a scoring query over ownership, decisions, sources and changes |
+| `who_knows(topic)` | People ranked by a scoring query over ownership, decisions, sources and changes, plus PageRank over the caller's visible graph |
 | `impact(constraint)` | Current decisions that rely on a constraint or assumption (`BECAUSE_OF`) |
 | `pending_sources` | Connector Sources still waiting for extraction, paged, text capped at 4,000 characters per call |
 | `propose_from_source(source_id, content_hash, items)` | Write the decisions found in one Source as `proposed`, then mark the Source done |
 | `review_proposals(action)` | List proposed decisions, or accept (optionally edited) or dismiss them |
-| `review_source_changes(action, ids)` | List accepted decisions whose Source was edited or deleted since it was recorded, or confirm that they still hold |
-
-Planned, not built yet: `what_changed(since, person)` for My Brief.
+| `review_source_changes(action, ids)` | List accepted decisions whose Source was edited or deleted since it was recorded, and possible conflicts ranked by source, or confirm that they still hold |
+| `changes_since(since, until)` | Decisions created, superseded or flagged, proposals accepted, and Sources edited or deleted in a time window, paged |
+| `check_answer(statements)` | For each statement of an answer, whether the decisions it cites are current, superseded, flagged, not accepted, or not found or not visible |
 
 - A Decision saved through the agent is `accepted` with `confirmed_by` set to the caller, because the person who made it confirmed the preview. Decisions extracted from connector Sources are `proposed` until a person accepts them.
 - Decision status is one of `proposed`, `accepted`, `superseded` or `dismissed`. Dismissed decisions are kept (with `dismissed_by` and `dismissed_at`) but recall, who_knows and impact skip them.
@@ -356,6 +356,23 @@ UNION ALL
 ...
 ```
 
+#### Centrality (PageRank on a temporary projection)
+
+`algo.pageRank` runs over a whole label and relationship type, so on the workspace graph it would count decisions the caller cannot see. `personCentrality` (`lib/brain/centrality.ts`) instead copies only what the caller can see into a new graph `<graph>__algo_<uuid>` (`withScratchGraph` in `lib/graph/client.ts`), runs PageRank there and deletes the graph in a `finally`, even when the algorithm fails.
+
+- Nodes: every Person, the Decisions the caller can see (not dismissed) and the Sources the caller can see (not deleted), all copied as `(:N {key})` with keys `person:<id>`, `decision:<id>` and `source:<id>`.
+- Edges: Decision `MADE_BY` or `APPROVED_BY` Person, Person `AUTHORED` Source, and Decision `DERIVED_FROM` an Excerpt `IN` a Source (collapsed into one edge). Each becomes `[:R]` in both directions.
+- With no edges, over 3,000 nodes or 20,000 edges, or when the projection fails, who_knows ranks without it.
+- Each Person's score is divided by the highest Person score. A person who already has a topic signal gets `3 × that ratio` extra points, kind `centrality`, rounded to one decimal. PageRank never adds someone with no signal on the topic, so it reorders the list without filling it.
+- The People view shows these points in a Centrality column.
+
+```cypher
+-- in the scratch graph, after copying the caller's visible rows
+CALL algo.pageRank('N', 'R') YIELD node, score
+WHERE node.key STARTS WITH 'person:'
+RETURN node.key, score
+```
+
 ### People view
 
 `/w/<slug>/people` lists workspace members, plus imported people the caller can see something for, with what they own (`OWNS`), what they changed most (`WORKED_ON`, and the CodeUnits a WorkItem they worked on `TOUCHES`) and the decisions they made. Owned and worked-on items pass the same `shown(x)` check as who_knows; decisions pass `visible(d)` and skip dismissed ones. Hidden items are not counted. A topic search on the same page calls `rankPeople` and shows each person's score split by `kind`.
@@ -394,6 +411,68 @@ RETURN d.title, maker.name, collect(DISTINCT coalesce(x.path, x.name)) AS affect
 MATCH (new:Decision {id: $newId}), (old:Decision {id: $oldId})
 CREATE (new)-[:SUPERSEDES]->(old)
 SET old.status = 'superseded', old.valid_to = localdatetime()
+```
+
+### Changes since
+
+`changes_since(since, until)` lists what changed in a window, newest first, paged with `skip` and `limit`. `since` and `until` are UTC; `until` defaults to now. One `UNION ALL` query, every branch starting from the caller and filtered by `visible`:
+
+| Change | Time property |
+| --- | --- |
+| Decision created (not dismissed) | `recorded_at` |
+| Decision superseded, with the visible replacement | `valid_to` |
+| Proposal accepted | `confirmed_at` (set only by accepting a proposal) |
+| Decision flagged: an accepted Decision whose visible Source changed (same check as Source changes) | `coalesce(s.deleted_at, s.updated_at)` |
+| Source edited | `updated_at`, when later than `created_at` |
+| Source deleted | `deleted_at` |
+
+Rows are sorted and paged in application code. A date-time without a zone is read as UTC.
+
+```cypher
+MATCH (u:Person {id: $personId})-[:HAS_ROLE]->(role:Role)
+MATCH (d:Decision {status: 'superseded'})
+WHERE d.valid_to >= localdatetime($since) AND d.valid_to < localdatetime($until) AND <visible(d)>
+OPTIONAL MATCH (n:Decision)-[:SUPERSEDES]->(d) WHERE n.status IN ['accepted', 'superseded'] AND <visible(n)>
+WITH d, collect(DISTINCT n.id) AS by
+RETURN 'decision superseded' AS kind, d.id, d.title, d.valid_to AS at, by[0]
+```
+
+### Check answer
+
+`check_answer(statements: [{text, decision_ids}])` checks an answer before the agent gives it. The brain instructions tell the agent to call it before any final answer that cites decisions. For each cited id:
+
+- `not_found_or_not_visible`: no Decision with that id passes `visible(d)`. A missing and a hidden decision give the same reply, so nothing about a restricted one leaks.
+- `superseded`: status `superseded`, or an accepted or superseded Decision `SUPERSEDES` it. `replaced_by` lists only replacements the caller can see.
+- `flagged`: accepted, but a visible Source changed since the link was stamped (Source changes).
+- `not_accepted`: status `proposed` or `dismissed`.
+- `current`: none of the above.
+
+A statement takes the worst verdict of the decisions it cites, in that order. A statement with no ids is `unsourced`.
+
+```cypher
+MATCH (u:Person {id: $personId})-[:HAS_ROLE]->(role:Role)
+MATCH (d:Decision) WHERE d.id IN $ids AND <visible(d)>
+OPTIONAL MATCH (n:Decision)-[:SUPERSEDES]->(d) WHERE n.status IN ['accepted', 'superseded'] AND <visible(n)>
+OPTIONAL MATCH (d)-[link:DERIVED_FROM]->(:Excerpt)-[:IN]->(s:Source) WHERE <visible(s)> AND <sourceChanged(link, s)>
+RETURN d.id, d.title, d.status, collect(DISTINCT {id: n.id, title: n.title}) AS replacedBy, count(DISTINCT s) AS changedSources
+```
+
+### Conflict hints
+
+`review_source_changes list` also lists pairs of current Decisions (accepted, visible, no changed visible Source) that are `ABOUT` or `AFFECT` the same node (the node must pass `shown(x)`), most shared targets first, at most 200 pairs. Axon makes no LLM call, so it cannot tell whether two decisions disagree: it shows both statements and the agent and the person judge. Each pair names the decision more likely to hold, from the strongest visible Source behind each:
+
+1. `Doc` (ADRs are Docs)
+2. `WorkItem`, `PR`, `Commit`
+3. `Message`, `Thread`, `Meeting`, `Conversation`
+4. no visible Source
+
+At the same rank the newer one (`coalesce(valid_from, recorded_at)`) wins. This is a suggestion only: nothing writes `SUPERSEDES` automatically. A person settles it with `supersede` or `save_session`.
+
+```cypher
+MATCH (u:Person {id: $personId})-[:HAS_ROLE]->(role:Role)
+MATCH (a:Decision {status: 'accepted'})-[:ABOUT|AFFECTS]->(x)<-[:ABOUT|AFFECTS]-(b:Decision {status: 'accepted'})
+WHERE a.id < b.id AND <visible(a)> AND <visible(b)> AND <shown(x)>
+RETURN a.id, b.id, collect(DISTINCT coalesce(x.path, x.name)) AS targets
 ```
 
 ## Plane and Slack

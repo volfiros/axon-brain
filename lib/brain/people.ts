@@ -1,14 +1,10 @@
 import type { Role } from "@/lib/roles";
 
-import { FROM_CALLER, readAsCaller, visible } from "./access";
+import { FROM_CALLER, readAsCaller, shown, visible } from "./access";
+import { personCentrality } from "./centrality";
 import type { DecisionStatus } from "./overview";
 import { day, searchTerms } from "./search";
 import type { BrainContext } from "./tool";
-
-// Projects and Plane work items carry VISIBLE_TO; nodes without any (CodeUnit, Process, Topic) are shown as before.
-function shown(alias: string): string {
-  return `(NOT (${alias})-[:VISIBLE_TO]->() OR ${visible(alias)})`;
-}
 
 const TARGET = `
   ${FROM_CALLER}
@@ -53,7 +49,9 @@ const SCORING = `
   WITH DISTINCT p, s
   RETURN ${PERSON}, 'authored' AS kind, 'wrote ' + s.title AS signal, 2.0 AS points`;
 
-export type SignalKind = "owns" | "decisions" | "authored" | "workedOn";
+export type SignalKind = "owns" | "decisions" | "authored" | "workedOn" | "centrality";
+
+const CENTRALITY_POINTS = 3;
 
 type Signal = {
   personId: string;
@@ -80,6 +78,7 @@ export async function rankPeople(ctx: BrainContext, topic: string): Promise<Rank
   const { stems } = searchTerms(topic);
   if (stems.length === 0) return null;
   const signals = await readAsCaller<Signal>(ctx, SCORING, { stems });
+  const centrality = signals.length > 0 ? await personCentrality(ctx).catch(() => null) : null;
 
   const people = new Map<string, RankedPerson>();
   const seen = new Set<string>();
@@ -92,13 +91,20 @@ export async function rankPeople(ctx: BrainContext, topic: string): Promise<Rank
       title: s.title,
       onAxon: s.onAxon,
       score: 0,
-      breakdown: { owns: 0, decisions: 0, authored: 0, workedOn: 0 },
+      breakdown: { owns: 0, decisions: 0, authored: 0, workedOn: 0, centrality: 0 },
       reasons: [],
     };
     person.score += s.points;
     person.breakdown[s.kind] += s.points;
     person.reasons.push(`${s.signal} (+${s.points})`);
     people.set(s.personId, person);
+  }
+  for (const person of people.values()) {
+    const points = Math.round(CENTRALITY_POINTS * (centrality?.get(person.personId) ?? 0) * 10) / 10;
+    if (points === 0) continue;
+    person.score = Math.round((person.score + points) * 10) / 10;
+    person.breakdown.centrality = points;
+    person.reasons.push(`central among the people, decisions and sources you can see (+${points})`);
   }
   return [...people.values()].sort((a, b) => b.score - a.score).slice(0, 5);
 }
