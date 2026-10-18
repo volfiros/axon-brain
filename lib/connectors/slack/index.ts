@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-import type { Batch, Connector, ConnectorContext, PersonRef, SourceInput } from "../types";
+import type { Batch, Connector, ConnectorContext, SourceInput } from "../types";
 import { httpSlackApi, paginate, type SlackApi } from "./api";
 import {
   channelScope,
@@ -52,12 +52,10 @@ function epochSeconds(iso: string | undefined): string | undefined {
 export async function* backfillWith(api: SlackApi, ctx: ConnectorContext): AsyncIterable<Batch> {
   const { url: teamUrl } = await api.call<{ url: string }>("auth.test");
 
-  const people: PersonRef[] = [];
-  for await (const user of paginate<SlackUser>(api, "users.list", "members")) {
-    if (isHuman(user)) people.push(userToPerson(user));
-  }
-  yield { people };
-  const humans = new Set(people.map((person) => person.external_id));
+  const users = await collect(paginate<SlackUser>(api, "users.list", "members"));
+  // Bots get a name so their messages show an author, but never count as channel members.
+  yield { people: users.filter((user) => isHuman(user) || (user.is_bot && !user.deleted)).map(userToPerson) };
+  const humans = new Set(users.filter(isHuman).map((user) => user.id));
 
   const oldest = epochSeconds(ctx.since);
   const channels = paginate<SlackChannel>(api, "conversations.list", "channels", {
@@ -155,7 +153,7 @@ function storedTime(value: unknown): string | undefined {
   return value ? `${String(value)}Z` : undefined;
 }
 
-// Only people already synced from users.list count, which keeps bots and unknown accounts out of the graph.
+// Only accounts already synced from users.list count, which keeps unknown accounts out of the graph.
 async function isSyncedPerson(ctx: ConnectorContext, userId: string): Promise<boolean> {
   const rows = await ctx.graph.roQuery("MATCH (p:Person) WHERE $key IN p.external_ids RETURN p.id", {
     key: `slack:${userId}`,
