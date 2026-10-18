@@ -494,7 +494,7 @@ RETURN a.id, b.id, collect(DISTINCT coalesce(x.path, x.name)) AS targets
 An answer the person wants to keep is saved with `save_answer` and goes stale on its own when what it cites changes.
 
 ```
-(:Answer {id, question, statements: [text, ...], status: 'current' | 'stale', sensitivity, saved_by, saved_at,
+(:Answer {id, question, statements: [text, ...], cite_key, status: 'current' | 'stale', sensitivity, saved_by, saved_at,
           stale_reason, stale_at, stale_decision_id})
 (Answer)-[:CITES {statement}]->(Decision)
 (Person)-[:SAVED]->(Answer)
@@ -504,7 +504,8 @@ An answer the person wants to keep is saved with `save_answer` and goes stale on
 - `statements` holds the text of each statement, and `CITES.statement` is the index of the statement that cites the decision.
 - Every cited decision must be visible to the caller, `accepted`, and have no visible Source that changed since it was recorded. Otherwise nothing is written and the reply names the replacing decision or says to run `review_source_changes`.
 - The Answer copies the `VISIBLE_TO` edges of its narrowest cited decision (restricted, then team, then public). Reads also require every cited decision to be visible, which covers two restricted decisions naming different people.
-- Saving the same question and statements again while the caller's earlier Answer is current writes nothing.
+- Saving the same question, statements and citations again while the caller's earlier Answer is current writes nothing. `cite_key` is the sorted `statement:decision_id` pairs.
+- The Answer, its `VISIBLE_TO` edges and its `CITES` edges are written in one query, so an Answer never exists without its audience.
 - An Answer goes stale when a cited decision is superseded (`supersedeDecision`, used by `supersede` and save_session "change") or when the connector writer updates a Source behind a cited decision so that `sourceChanged` holds. `stale_reason` names only the cited decision. The replacing decision is looked up at read time and shown only when the reader can see it. A stale Answer stays stale.
 - The workspace home has a Saved answers tab, stale first, linking cited and replacing decisions to `/w/<slug>?decision=<id>`.
 

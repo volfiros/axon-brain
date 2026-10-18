@@ -100,10 +100,12 @@ export async function writeAnswer(
   cited: CitedDecision[],
 ): Promise<{ id: string; again: boolean }> {
   const texts = statements.map((s) => s.text);
-  const params = { personId: ctx.caller.personId, question, statements: texts };
+  const cites = statements.flatMap((s, statement) => s.decision_ids.map((decisionId) => ({ statement, decisionId })));
+  const citeKey = [...new Set(cites.map((c) => `${c.statement}:${c.decisionId}`))].sort().join(",");
+  const params = { personId: ctx.caller.personId, question, statements: texts, citeKey };
   const [existing] = await ctx.graph.roQuery<{ id: string }>(
     `MATCH (:Person {id: $personId})-[:SAVED]->(a:Answer {status: 'current'})
-     WHERE a.question = $question AND a.statements = $statements
+     WHERE a.question = $question AND a.statements = $statements AND a.cite_key = $citeKey
      RETURN a.id AS id LIMIT 1`,
     params,
   );
@@ -111,22 +113,20 @@ export async function writeAnswer(
 
   const id = `ans_${randomUUID().slice(0, 8)}`;
   const { sensitivity, from } = narrowest(cited);
-  const cites = statements.flatMap((s, statement) => s.decision_ids.map((decisionId) => ({ statement, decisionId })));
+  // One query, so an Answer never exists without its audience: it takes the VISIBLE_TO edges of its narrowest cited
+  // decision and never reaches someone who cannot see what it cites.
   await ctx.graph.query(
-    `MATCH (p:Person {id: $personId})
-     CREATE (p)-[:SAVED]->(a:Answer {id: $id, question: $question, statements: $statements, status: 'current',
-             sensitivity: $sensitivity, saved_by: $personId, saved_at: localdatetime()})
-     WITH a
+    `MATCH (p:Person {id: $personId}), (src:Decision {id: $from})
+     CREATE (p)-[:SAVED]->(a:Answer {id: $id, question: $question, statements: $statements, cite_key: $citeKey,
+             status: 'current', sensitivity: $sensitivity, saved_by: $personId, saved_at: localdatetime()})
+     WITH a, src
+     MATCH (src)-[:VISIBLE_TO]->(g)
+     CREATE (a)-[:VISIBLE_TO]->(g)
+     WITH DISTINCT a
      UNWIND $cites AS c
      MATCH (d:Decision {id: c.decisionId})
      CREATE (a)-[:CITES {statement: c.statement}]->(d)`,
-    { ...params, id, sensitivity, cites },
-  );
-  // The answer takes the audience of its narrowest cited decision, so it never reaches someone who cannot see what it cites.
-  await ctx.graph.query(
-    `MATCH (a:Answer {id: $id}), (d:Decision {id: $from})-[:VISIBLE_TO]->(g)
-     CREATE (a)-[:VISIBLE_TO]->(g)`,
-    { id, from },
+    { ...params, id, sensitivity, from, cites },
   );
   return { id, again: false };
 }
