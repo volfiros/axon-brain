@@ -11,9 +11,19 @@ import type { DecisionView } from "@/lib/brain/overview";
 
 import { stillHoldsAction } from "./actions";
 
-export function DecisionsTable({ decisions, slug, canWrite }: { decisions: DecisionView[]; slug: string; canWrite: boolean }) {
-  const [open, setOpen] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+export function DecisionsTable({
+  decisions,
+  slug,
+  canWrite,
+  initialId,
+}: {
+  decisions: DecisionView[];
+  slug: string;
+  canWrite: boolean;
+  initialId?: string;
+}) {
+  const [open, setOpen] = useState(initialId !== undefined);
+  const [selectedId, setSelectedId] = useState<string | null>(initialId ?? null);
   const selected = decisions.find((d) => d.id === selectedId);
 
   return (
