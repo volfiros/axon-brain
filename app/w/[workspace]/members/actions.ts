@@ -4,7 +4,15 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireAccount } from "@/lib/auth/session";
-import { createInvite, leaveWorkspace, removeMember, revokeInvite, setRole, type Role } from "@/lib/workspaces";
+import {
+  createInvite,
+  leaveWorkspace,
+  removeMember,
+  revokeInvite,
+  setRole,
+  type InviteRole,
+  type Role,
+} from "@/lib/workspaces";
 
 type Result = { error?: string };
 
@@ -23,14 +31,14 @@ export async function changeRoleAction(slug: string, personId: string, role: Rol
   return run(slug, (accountId) => setRole(slug, accountId, personId, role));
 }
 
-export async function newInviteAction(slug: string): Promise<Result> {
+export async function newInviteAction(slug: string, role: InviteRole): Promise<Result> {
   return run(slug, async (accountId) => {
-    await createInvite(slug, accountId);
+    await createInvite(slug, accountId, role);
   });
 }
 
-export async function revokeInviteAction(slug: string): Promise<Result> {
-  return run(slug, (accountId) => revokeInvite(slug, accountId));
+export async function revokeInviteAction(slug: string, role: InviteRole): Promise<Result> {
+  return run(slug, (accountId) => revokeInvite(slug, accountId, role));
 }
 
 export async function removeMemberAction(slug: string, personId: string): Promise<Result> {

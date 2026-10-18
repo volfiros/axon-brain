@@ -145,7 +145,7 @@ The shared `<prefix>_accounts` graph holds sign-in identity and the index of Wor
 
 - `Workspace {id, slug, name, created_at}`: `slug` is stable and names the Workspace graph and its `/w/<slug>/mcp` address.
 - `Connector {id: 'github:<installation_id>', provider: 'github', installation_id, repo, status, synced_at}`: links a GitHub App installation to the Workspace whose graph its webhooks write to. `status` is `syncing`, `synced`, `error` or `disconnected`.
-- `Invite {code, created_at, expires_at}`: one live invite per Workspace, valid for 7 days. Joining through it adds a Person with the Guest Role.
+- `Invite {code, role, created_at, expires_at}`: one live invite per Role per Workspace, valid for 7 days. `role` is `Member` or `Guest`, never `Admin`, and joining adds a Person with that Role. An Invite without `role`, made before roles were added, joins as Guest.
 - `Account {id, name, email, username, ...}` and the other sign-in nodes are written by Better Auth through the FalkorDB adapter (`lib/auth/falkordb-adapter.ts`). Each Better Auth model is one label with flat properties, linked by id properties rather than edges: `Credential` (password hash), `Session`, `Verification`, `Jwks`, and the OAuth provider's `OauthClient`, `OauthAccessToken`, `OauthRefreshToken`, `OauthConsent` and `OauthResource`. Dates are ISO strings.
 - Each Workspace registers an `OauthResource` with `identifier` set to its MCP address. Access tokens carry that address as their audience, so a token works for one Workspace only (ADR 0004).
 

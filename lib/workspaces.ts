@@ -122,37 +122,44 @@ export async function createWorkspace(account: AccountRef, input: { name: string
   return workspace;
 }
 
-export async function createInvite(slug: string, adminAccountId: string): Promise<string> {
+export const INVITE_ROLES = ["Member", "Guest"] as const satisfies readonly Role[];
+export type InviteRole = (typeof INVITE_ROLES)[number];
+
+export async function createInvite(slug: string, adminAccountId: string, role: InviteRole): Promise<string> {
+  if (!INVITE_ROLES.includes(role)) throw new Error("Invites can only add a Member or a Guest.");
   const admin = await getMember(slug, adminAccountId);
   if (admin?.role !== "Admin") throw new Error("Only an Admin can invite people.");
   const code = randomBytes(16).toString("base64url");
-  // One live invite per Workspace: making a new one retires the old code.
+  // One live invite per Role: making a new one retires the old code for that Role. Invites from before roles join as Guest.
   await accountsGraph().query(
     `MATCH (w:Workspace {slug: $slug})
-     OPTIONAL MATCH (old:Invite)-[:FOR]->(w)
+     OPTIONAL MATCH (old:Invite)-[:FOR]->(w) WHERE coalesce(old.role, 'Guest') = $role
      DETACH DELETE old
      WITH DISTINCT w
-     CREATE (:Invite {code: $code, created_at: localdatetime(), expires_at: localdatetime() + duration({days: $days})})-[:FOR]->(w)`,
-    { slug, code, days: INVITE_DAYS },
+     CREATE (:Invite {code: $code, role: $role, created_at: localdatetime(), expires_at: localdatetime() + duration({days: $days})})-[:FOR]->(w)`,
+    { slug, code, role, days: INVITE_DAYS },
   );
   return code;
 }
 
-export async function currentInvite(slug: string): Promise<string | null> {
-  const [row] = await accountsGraph().roQuery<{ code: string }>(
+export async function currentInvites(slug: string): Promise<Record<InviteRole, string | null>> {
+  const rows = await accountsGraph().roQuery<{ code: string; role: InviteRole }>(
     `MATCH (i:Invite)-[:FOR]->(:Workspace {slug: $slug})
      WHERE i.expires_at > localdatetime()
-     RETURN i.code AS code`,
+     RETURN i.code AS code, coalesce(i.role, 'Guest') AS role`,
     { slug },
   );
-  return row?.code ?? null;
+  return {
+    Member: rows.find((r) => r.role === "Member")?.code ?? null,
+    Guest: rows.find((r) => r.role === "Guest")?.code ?? null,
+  };
 }
 
-export async function findInvite(code: string): Promise<Workspace | null> {
-  const [workspace] = await accountsGraph().roQuery<Workspace>(
+export async function findInvite(code: string): Promise<(Workspace & { role: InviteRole }) | null> {
+  const [workspace] = await accountsGraph().roQuery<Workspace & { role: InviteRole }>(
     `MATCH (i:Invite {code: $code})-[:FOR]->(w:Workspace)
      WHERE i.expires_at > localdatetime()
-     RETURN w.id AS id, w.slug AS slug, w.name AS name`,
+     RETURN w.id AS id, w.slug AS slug, w.name AS name, coalesce(i.role, 'Guest') AS role`,
     { code: inviteCode(code) },
   );
   return workspace ?? null;
@@ -167,7 +174,7 @@ function inviteCode(input: string): string {
 export async function joinWithCode(account: AccountRef, code: string): Promise<Workspace> {
   const workspace = await findInvite(code);
   if (!workspace) throw new Error("That invite code is not valid or has expired.");
-  await addPerson(workspace.slug, account, "Guest");
+  await addPerson(workspace.slug, account, workspace.role);
   return workspace;
 }
 
@@ -236,11 +243,14 @@ export async function leaveWorkspace(slug: string, accountId: string): Promise<v
   await dropJoined(slug, accountId);
 }
 
-export async function revokeInvite(slug: string, adminAccountId: string): Promise<void> {
+export async function revokeInvite(slug: string, adminAccountId: string, role: InviteRole): Promise<void> {
   // The Invite lives in the accounts graph and the Role in the Workspace graph, so this check cannot share one query.
   const admin = await getMember(slug, adminAccountId);
   if (admin?.role !== "Admin") throw new Error("Only an Admin can revoke invites.");
-  await accountsGraph().query("MATCH (i:Invite)-[:FOR]->(:Workspace {slug: $slug}) DETACH DELETE i", { slug });
+  await accountsGraph().query(
+    "MATCH (i:Invite)-[:FOR]->(:Workspace {slug: $slug}) WHERE coalesce(i.role, 'Guest') = $role DETACH DELETE i",
+    { slug, role },
+  );
 }
 
 /** Copies a new display name onto the account's Person in every Workspace it joined. */

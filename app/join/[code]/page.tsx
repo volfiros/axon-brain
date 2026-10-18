@@ -14,7 +14,7 @@ export default async function JoinPage({ params }: { params: Promise<{ code: str
   return (
     <PageShell width="narrow" account={account}>
       {workspace ? (
-        <AuthCard title={`Join ${workspace.name}`} description="You join as a Guest. An Admin can change your role later.">
+        <AuthCard title={`Join ${workspace.name}`} description={`You join as a ${workspace.role}. An Admin can change your role later.`}>
           <JoinButton code={code} />
         </AuthCard>
       ) : (

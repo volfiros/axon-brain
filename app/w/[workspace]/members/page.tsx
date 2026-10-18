@@ -3,7 +3,7 @@ import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { appUrl } from "@/lib/auth";
 import { requireMember } from "@/lib/auth/session";
-import { currentInvite, listMembers } from "@/lib/workspaces";
+import { currentInvites, INVITE_ROLES, listMembers } from "@/lib/workspaces";
 
 import { leaveWorkspaceAction } from "./actions";
 import { InvitePanel } from "./invite-panel";
@@ -14,7 +14,7 @@ export default async function MembersPage({ params }: { params: Promise<{ worksp
   const { workspace, member } = await requireMember(slug, `/w/${slug}/members`);
   const isAdmin = member.role === "Admin";
   const members = await listMembers(slug);
-  const invite = isAdmin ? await currentInvite(slug) : null;
+  const invites = isAdmin ? await currentInvites(slug) : null;
   const soleAdmin = isAdmin && members.filter((m) => m.role === "Admin").length === 1;
 
   return (
@@ -26,11 +26,18 @@ export default async function MembersPage({ params }: { params: Promise<{ worksp
           <CardHeader>
             <CardTitle>Invite people</CardTitle>
             <CardDescription>
-              Anyone with this link can join as a Guest for the next 7 days. Replacing it turns off the old link.
+              Anyone with a link joins with its role for the next 7 days. Replacing a link turns off the old one.
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <InvitePanel slug={slug} link={invite ? `${appUrl}/join/${invite}` : null} />
+          <CardContent className="flex flex-col gap-6">
+            {INVITE_ROLES.map((role) => (
+              <InvitePanel
+                key={role}
+                slug={slug}
+                role={role}
+                link={invites?.[role] ? `${appUrl}/join/${invites[role]}` : null}
+              />
+            ))}
           </CardContent>
         </Card>
       )}
