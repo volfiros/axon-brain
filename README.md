@@ -244,7 +244,7 @@ The GitHub App, Plane and Slack variables in `.env.example` are only needed for 
 
 Link Slack and Link GitHub need `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET`, `GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET` and `CONNECTOR_STATE_SECRET`. Register these redirect URLs:
 
-- GitHub App, under **Identifying and authorizing users**: `<app url>/api/connectors/github/callback/link`. Generate the client secret under **Client secrets** on the same page.
+- GitHub App, under **Identifying and authorizing users**: `<app url>/api/connectors/github/callback/link`. Generate the client secret under **Credentials**, **Client secrets**.
 - Slack app, under **OAuth & Permissions**: `<app url>/api/connectors/slack/callback`. Linking uses a path below it, which Slack accepts.
 
 ## What we tested
