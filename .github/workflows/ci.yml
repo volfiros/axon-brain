@@ -1,4 +1,4 @@
-name: Checks
+name: Axon
 
 on:
   pull_request:
@@ -8,7 +8,7 @@ on:
 
 jobs:
   test:
-    name: Typecheck and tests
+    name: Tests
     runs-on: ubuntu-latest
     services:
       falkordb:
