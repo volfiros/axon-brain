@@ -13,6 +13,8 @@ export type FoundSource = {
   authors: string[];
   attendees: string[];
   parent: string | null;
+  /** A PR's reviews and comments, with who wrote them. */
+  reviews: string[];
   /** The search hit this message was pulled in for, when it came from the conversation around one. */
   near: string | null;
 };
@@ -103,8 +105,12 @@ export async function searchSources(ctx: BrainContext, query: string, options: S
      OPTIONAL MATCH (m:Person)-[:ATTENDED]->(s)
      WITH u, role, s, authors, collect(DISTINCT m.name) AS attendees
      OPTIONAL MATCH (s)-[:PART_OF]->(p:Source) WHERE ${visible("p")}
+     WITH u, role, s, authors, attendees, head(collect(p.title)) AS parent
+     OPTIONAL MATCH (r:Message)-[:PART_OF]->(s:PR) WHERE ${visible("r")}
+     OPTIONAL MATCH (ra:Person)-[:AUTHORED]->(r)
      RETURN s.id AS id, s.external_id AS externalId, [l IN labels(s) WHERE l <> 'Source'][0] AS kind, s.title AS title,
-            s.url AS url, s.created_at AS at, s.text AS text, authors, attendees, head(collect(p.title)) AS parent`,
+            s.url AS url, s.created_at AS at, s.text AS text, authors, attendees, parent,
+            [x IN collect(DISTINCT CASE WHEN r IS NULL THEN null ELSE left(r.text, 120) + coalesce(' (' + ra.name + ')', '') END) WHERE x IS NOT NULL] AS reviews`,
     { ids },
   );
   const byId = new Map(rows.map((r) => [r.id, r]));

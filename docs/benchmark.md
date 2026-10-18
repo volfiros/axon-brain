@@ -45,9 +45,22 @@ What moved the numbers:
 - Chat questions cite whole conversations, so each top message hit brings the messages within six hours of it in the same channel. That lifts recall@50 from 22 to 31 (32 with the stopwords) without moving the first 20 results.
 - Customers are referenced by id in messages; the `ExternalParty` nodes turn those ids into company names for the answer step.
 
-## Answers
+## Answers (all 1,514 questions)
 
-Pending: needs `OPENROUTER_API_KEY`. The paper's best agentic RAG averages 32.96 over content, person, customer and artifact questions.
+Each question goes to DeepSeek V3 (`deepseek/deepseek-chat` through OpenRouter) acting as a teammate's agent: it writes up to three keyword queries, `search_sources` runs them and the question itself, and the merged 50 Sources, with any customer ids resolved through `ExternalParty`, are all it may answer from. The same model judges content answers.
+
+| Type | n | Axon + DeepSeek V3 |
+| --- | --- | --- |
+| Content (judge, 1 to 100) | 238 | 48.5 |
+| People search (F1 on employee ids) | 260 | 38.1 |
+| Customer search (F1 on company names) | 130 | 48.6 |
+| Artifact search (F1 on PR links and URLs) | 187 | 12.3 |
+| **Average of the four** | 815 | **36.9** |
+| Unanswerable (correctly refused) | 699 | 65.7 |
+
+The paper's best agentic RAG averages 32.96 on the same four types. The numbers compare only roughly: a different answering model, a single search round instead of a multi-step agent, and a DeepSeek judge instead of GPT-4o, which may score content more generously.
+
+Artifact search is the weak spot. PR questions name a feature ("approved PRs for integrating predictive analytics"), while the PRs are titled by task ("Integrate TensorFlow LSTM for Time-Series Forecasting"); only the planning meeting transcripts tie the two together. Showing each PR's reviews in `search_sources` (state and reviewer) moved PR questions only from 9.1 to 10.0. Linking PRs to the features discussed in meetings would need a semantic step that Axon does not make on the server.
 
 ## Limits
 
