@@ -7,12 +7,12 @@ const IDENTIFIER = /^[A-Za-z][A-Za-z0-9_]*$/;
 // Better Auth calls the sign-in identity "user" and its password record "account"; the glossary calls them Account and Credential.
 const LABELS: Record<string, string> = { user: "Account", account: "Credential" };
 
-function label(model: string): string {
+export function label(model: string): string {
   const name = LABELS[model] ?? model.charAt(0).toUpperCase() + model.slice(1);
   return `\`${safe(name)}\``;
 }
 
-function safe(name: string): string {
+export function safe(name: string): string {
   if (!IDENTIFIER.test(name)) throw new Error(`Unsafe graph identifier: ${name}`);
   return name;
 }
@@ -53,7 +53,7 @@ function condition(clause: CleanedWhere, param: string): string {
 }
 
 // Clauses fold left to right with their own connector, matching Better Auth's memory adapter.
-function whereClause(where: CleanedWhere[] | undefined, params: Params): string {
+export function whereClause(where: CleanedWhere[] | undefined, params: Params): string {
   if (!where?.length) return "";
   let expression = "";
   where.forEach((clause, i) => {

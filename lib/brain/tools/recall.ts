@@ -110,7 +110,7 @@ export default defineTool({
 });
 
 // Full-text scores vary a lot between nodes, so the main signal is how many question words the decision itself uses.
-function rank(entries: Entry[]) {
+export function rank(entries: Entry[]) {
   const byId = new Map<string, { id: string; status: string; score: number; coverage: number; paths: string[] }>();
   for (const e of entries) {
     const hit = byId.get(e.id) ?? { id: e.id, status: e.status, score: 0, coverage: e.coverage, paths: [] };
@@ -128,7 +128,7 @@ function rank(entries: Entry[]) {
   );
 }
 
-function label(d: Detail): string {
+export function label(d: Detail): string {
   if (d.status === "superseded") return "superseded";
   return d.status === "accepted" && d.confirmedBy ? "accepted" : "proposed";
 }
@@ -230,7 +230,7 @@ function relatedLine(related: Related[] | undefined): string {
   return `\nRelated: ${related.map((r) => `${r.title}${r.url ? ` (${r.url})` : ""}`).join("; ")}`;
 }
 
-function hops(nodes: string[] | null, rels: string[] | null): string {
+export function hops(nodes: string[] | null, rels: string[] | null): string {
   return (nodes ?? []).map((node, i) => (i === 0 ? node : `${rels?.[i - 1] ?? ""}${node}`)).join("");
 }
 
