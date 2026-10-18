@@ -123,24 +123,47 @@ When you have enough, reply with the answer as ${FORMAT[item.type] ?? FORMAT.con
 Question: ${item.question}`,
     },
   ];
-  for (let step = 0; step < STEPS; step++) {
-    const reply = await complete(messages, [searchTool]);
-    messages.push(reply);
-    if (!reply.tool_calls?.length) return (reply.content ?? "").trim();
-    for (const call of reply.tool_calls) {
-      let content: string;
-      try {
-        const input = searchSourcesTool.inputSchema.parse(JSON.parse(call.function.arguments));
-        content = await searchSourcesTool.handler(input, ctx);
-        content += await customersIn(ctx, content);
-      } catch (err) {
-        content = `Tool error: ${err instanceof Error ? err.message : err}`;
-      }
-      messages.push({ role: "tool", tool_call_id: call.id, content });
+  const search = async (args: unknown) => {
+    try {
+      const content = await searchSourcesTool.handler(searchSourcesTool.inputSchema.parse(args), ctx);
+      return content + (await customersIn(ctx, content));
+    } catch (err) {
+      return `Tool error: ${err instanceof Error ? err.message : err}`;
     }
+  };
+  let answer = "";
+  for (let step = 0; step <= STEPS && !answer; step++) {
+    const last = step === STEPS;
+    if (last) messages.push({ role: "user", content: `Searching is over. Reply now with the answer as ${FORMAT[item.type] ?? FORMAT.content}, or UNANSWERABLE.` });
+    const reply = await complete(messages, last ? undefined : [searchTool]);
+    messages.push(reply);
+    if (reply.tool_calls?.length) {
+      for (const call of reply.tool_calls) messages.push({ role: "tool", tool_call_id: call.id, content: await search(JSON.parse(call.function.arguments)) });
+      continue;
+    }
+    // DeepSeek V4 Flash sometimes writes its tool calls into the reply text in its own markup instead of calling the tool.
+    const written = textToolCalls(reply.content ?? "");
+    if (written.length) {
+      const results = await Promise.all(written.map(search));
+      messages.push({ role: "user", content: results.map((r, i) => `search_sources(${JSON.stringify(written[i])}):\n${r}`).join("\n\n") });
+      continue;
+    }
+    answer = (reply.content ?? "").trim();
+    if (!answer) messages.push({ role: "user", content: "Reply with the answer now." });
   }
-  messages.push({ role: "user", content: `Searching is over. Reply now with the answer as ${FORMAT[item.type] ?? FORMAT.content}, or UNANSWERABLE.` });
-  return ((await complete(messages)).content ?? "").trim();
+  if (item.type !== "content" && answer && !/UNANSWERABLE/i.test(answer) && !/^\s*\[[\s\S]*\]\s*$/.test(answer)) {
+    messages.push({ role: "user", content: `Reply with only ${FORMAT[item.type]}, nothing else.` });
+    answer = ((await complete(messages)).content ?? "").trim() || answer;
+  }
+  return answer;
+}
+
+function textToolCalls(text: string): Record<string, unknown>[] {
+  return [...text.matchAll(/invoke name="search_sources">([\s\S]*?)<\/[^>]*invoke>/g)].map((m) =>
+    Object.fromEntries(
+      [...m[1].matchAll(/parameter name="(\w+)"[^>]*>([\s\S]*?)<\/[^>]*parameter>/g)].map(([, k, v]) => [k, k === "limit" ? Number(v) : v.trim()]),
+    ),
+  );
 }
 
 function answerPrompt(product: string, question: string, type: string, context: string): string {
@@ -234,7 +257,7 @@ async function main() {
   const file = join(HERB_DIR, "results", `answers-${process.argv[2] ?? "run"}.json`);
   // A re-run keeps the answers a previous run of the same label already scored and asks only the rest.
   const done = new Map<string, Scored>(
-    existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")).scored as Scored[]).filter((s) => !s.answer.startsWith("ERROR")).map((s) => [`${s.product}\n${s.question}`, s]) : [],
+    existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")).scored as Scored[]).filter((s) => !s.answer.startsWith("ERROR") && s.answer.trim() && !s.answer.includes("invoke name=")).map((s) => [`${s.product}\n${s.question}`, s]) : [],
   );
   const scored = await pool(items, CONCURRENCY, async (it): Promise<Scored> =>
     done.get(`${it.product}\n${it.question}`) ??
