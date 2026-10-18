@@ -140,22 +140,45 @@ test("Backfill yields people and named bots, then messages and replies from chan
   assert.equal(api.calls.includes("conversations.history:C2"), false);
 });
 
-test("An incremental backfill asks Slack only for messages after the resume point", async () => {
-  const seen: Record<string, string>[] = [];
-  const api: SlackApi = {
+function historyApi(channels: string[], seen: Record<string, string>[]): SlackApi {
+  return {
     async call<T>(method: string, params: Record<string, string> = {}) {
       if (method === "conversations.history") seen.push(params);
       const replies: Record<string, unknown> = {
         "auth.test": { url: "https://acme.slack.test" },
         "users.list": { members: [] },
-        "conversations.list": { channels: [{ id: "C1", name: "general", is_member: true }] },
+        "conversations.list": { channels: channels.map((id) => ({ id, name: id.toLowerCase(), is_member: true })) },
         "conversations.history": { messages: [] },
       };
       return { ok: true, ...(replies[method] as object) } as T;
     },
   };
-  await collect(backfillWith(api, { workspace: "acme", since: "2026-10-01T00:00:00Z" } as ConnectorContext));
-  assert.equal(seen[0].oldest, String(Date.parse("2026-10-01T00:00:00Z") / 1000));
+}
+
+function storedChannels(...channels: string[]): ConnectorContext["graph"] {
+  return { roQuery: async () => channels.map((channel) => ({ channel })) } as unknown as ConnectorContext["graph"];
+}
+
+const resumeAt = "2026-10-01T00:00:00Z";
+
+test("An incremental backfill asks Slack only for messages after the resume point in channels it already holds", async () => {
+  const seen: Record<string, string>[] = [];
+  const ctx = { workspace: "acme", since: resumeAt, graph: storedChannels("C1") } as ConnectorContext;
+  await collect(backfillWith(historyApi(["C1"], seen), ctx));
+  assert.equal(seen[0].oldest, String(Date.parse(resumeAt) / 1000));
+});
+
+test("A channel the bot joined after the last sync is read from its start", async () => {
+  const seen: Record<string, string>[] = [];
+  const ctx = { workspace: "acme", since: resumeAt, graph: storedChannels("C1") } as ConnectorContext;
+  await collect(backfillWith(historyApi(["C1", "C2"], seen), ctx));
+  assert.deepEqual(
+    seen.map((params) => [params.channel, params.oldest]),
+    [
+      ["C1", String(Date.parse(resumeAt) / 1000)],
+      ["C2", undefined],
+    ],
+  );
 });
 
 test("Envelopes that are not message callbacks, and direct messages, yield nothing", async () => {
