@@ -2,6 +2,7 @@ export const instructions = [
   "Axon is this team's memory of decisions: what was decided, why, what was rejected, who decided and where it was said.",
   "Before changing code or a process, call recall with the file, process or topic to check for past decisions, and follow them or say why not.",
   "When recall answers, keep its sources and graph path in your reply. Never guess at a decision it did not return.",
+  "When no decision covers a question, call search_sources for the messages, docs, meetings and PRs behind it, and cite their links.",
   "Before a final answer that cites decisions, call check_answer with each statement, its decision ids and any quote. Drop or fix any statement that is not current, and say when a decision was superseded or its source changed.",
   "When a restricted item is mentioned, pass on who to ask. Do not try to work out its content.",
   "Ask who_knows who to talk to, knowledge_risk when only one person may hold something, impact when a constraint changes, changes_since to catch up, stale_decisions before relying on an old decision, and list_questions for what is still undecided.",

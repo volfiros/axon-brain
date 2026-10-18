@@ -176,6 +176,7 @@ async function writeSources(
       sensitivity: s.sensitivity,
       extract: s.extract ?? true,
       content_hash: contentHash(s),
+      channel: s.channel ?? null,
     });
     groups.set(key, rows);
   }
@@ -191,7 +192,7 @@ async function writeSources(
              ELSE 'pending' END
        ${addLabels}
        SET s.connector = r.connector, s.external_id = r.external_id, s.title = r.title, s.text = r.text,
-           s.url = r.url, s.sensitivity = r.sensitivity, s.content_hash = r.content_hash,
+           s.url = r.url, s.sensitivity = r.sensitivity, s.content_hash = r.content_hash, s.channel = r.channel,
            s.created_at = localdatetime(r.created_at),
            s.updated_at = CASE WHEN r.updated_at IS NULL THEN null ELSE localdatetime(r.updated_at) END,
            s.deleted_at = CASE WHEN r.deleted_at IS NULL THEN null ELSE localdatetime(r.deleted_at) END,

@@ -105,6 +105,7 @@ export function messageBatch(scope: ChannelScope, message: SlackMessage, teamUrl
     deleted_at: deletedAt,
     sensitivity: scope.sensitivity,
     visible_to: scope.visible_to,
+    channel: `slack:${scope.id}`,
   });
   if (message.user) {
     batch.people.push(slackRef(message.user));
