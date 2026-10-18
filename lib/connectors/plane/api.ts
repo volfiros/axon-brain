@@ -23,6 +23,8 @@ export function httpPlaneApi(opts: { apiUrl: string; apiKey: string; workspaceSl
       lastCall = Date.now();
       const res = await fetch(`${base}${path}?${new URLSearchParams(query)}`, {
         headers: { "X-API-Key": opts.apiKey, Accept: "application/json" },
+        // A redirect would carry the API key to another host, so a 3xx fails like any other error.
+        redirect: "manual",
       });
       if (res.status === 429 && attempt < MAX_RETRIES) {
         const reset = Number(res.headers.get("X-RateLimit-Reset")) * 1000;

@@ -2,6 +2,7 @@ import { workspaceGraph } from "@/lib/graph/client";
 import { ensureWorkspaceSchema } from "@/lib/graph/schema";
 
 import { getConnector, loadSecrets, setConnectorStatus, type Provider } from "./credentials";
+import { assertPublicHost } from "./plane/connect";
 import { planeConfig, backfillWith as planeBackfill } from "./plane";
 import { httpPlaneApi } from "./plane/api";
 import type { PlaneLinks } from "./plane/normalize";
@@ -77,19 +78,33 @@ function batchesFor(provider: Provider, ctx: ConnectorContext, plane: PlaneCrede
   return null;
 }
 
-/** Imports everything new from Slack or Plane into the Workspace graph and records the outcome on the connector. */
-export async function syncConnector(slug: string, provider: Provider): Promise<number> {
-  const plane = provider === "plane" ? await resolvePlane(slug) : null;
-  const slack = provider === "slack" ? await resolveSlack(slug) : null;
-  const graph = workspaceGraph(slug);
-  const since = await resumePoint(slug, provider);
-  const batches: AsyncIterable<Batch> | null = batchesFor(provider, { workspace: slug, graph, since }, plane, slack);
-  if (!batches) throw new Error(`${provider} is not connected`);
+export class SyncInProgressError extends Error {}
 
-  await ensureWorkspaceSchema(graph);
+/**
+ * Reads where to continue from, then marks the connector as syncing. Refuses while another sync is still running.
+ * Callers run `runSync` with the result, usually after the response.
+ */
+export async function beginSync(slug: string, provider: Provider): Promise<string | undefined> {
+  const connector = await getConnector(slug, provider);
+  if (connector?.status === "syncing" && !isStale(connector.sync_started_at)) {
+    throw new SyncInProgressError(`A ${provider === "plane" ? "Plane" : "Slack"} sync is already running`);
+  }
+  const since = await resumePoint(slug, provider);
   await setConnectorStatus(slug, provider, "syncing");
+  return since;
+}
+
+/** Imports everything new from Slack or Plane into the Workspace graph and records the outcome on the connector. */
+export async function runSync(slug: string, provider: Provider, since: string | undefined): Promise<number> {
+  const graph = workspaceGraph(slug);
   let sources = 0;
   try {
+    const plane = provider === "plane" ? await resolvePlane(slug) : null;
+    const slack = provider === "slack" ? await resolveSlack(slug) : null;
+    if (plane) await assertPublicHost(new URL(plane.apiUrl).hostname);
+    const batches: AsyncIterable<Batch> | null = batchesFor(provider, { workspace: slug, graph, since }, plane, slack);
+    if (!batches) throw new Error(`${provider} is not connected`);
+    await ensureWorkspaceSchema(graph);
     for await (const batch of batches) {
       await writeBatch(graph, batch);
       sources += batch.sources?.length ?? 0;
@@ -100,4 +115,8 @@ export async function syncConnector(slug: string, provider: Provider): Promise<n
     await setConnectorStatus(slug, provider, "error", (err as Error).message.slice(0, 200));
     throw err;
   }
+}
+
+export async function syncConnector(slug: string, provider: Provider): Promise<number> {
+  return runSync(slug, provider, await beginSync(slug, provider));
 }

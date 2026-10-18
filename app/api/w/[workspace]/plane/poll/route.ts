@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 
-import { resolvePlane, syncConnector } from "@/lib/connectors/sync";
+import { resolvePlane, syncConnector, SyncInProgressError } from "@/lib/connectors/sync";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -16,6 +16,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ workspac
     return new Response(null, { status: 401 });
   }
 
-  const sources = await syncConnector(workspace, "plane");
-  return Response.json({ ok: true, sources });
+  try {
+    const sources = await syncConnector(workspace, "plane");
+    return Response.json({ ok: true, sources });
+  } catch (err) {
+    if (err instanceof SyncInProgressError) return Response.json({ ok: false, error: err.message }, { status: 409 });
+    throw err;
+  }
 }

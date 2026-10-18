@@ -3,7 +3,7 @@ import { after } from "next/server";
 import { requireAccount } from "@/lib/auth/session";
 import { verifyState } from "@/lib/connectors/github/connection";
 import { completeSlackInstall } from "@/lib/connectors/slack/oauth";
-import { syncConnector } from "@/lib/connectors/sync";
+import { beginSync, runSync } from "@/lib/connectors/sync";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -21,9 +21,12 @@ export async function GET(req: Request) {
     await completeSlackInstall(slug, account.id, code);
   } catch (err) {
     const message = (err as Error).message;
-    const status = message.startsWith("Only a Workspace Admin") ? 403 : 502;
+    const status = message.startsWith("Only a Workspace Admin") ? 403 : message.includes("another Axon workspace") ? 409 : 502;
     return Response.json({ error: message }, { status });
   }
-  after(() => syncConnector(slug, "slack").catch((err) => console.error(`Slack import for ${slug} failed:`, err)));
+  const since = await beginSync(slug, "slack").catch(() => null);
+  if (since !== null) {
+    after(() => runSync(slug, "slack", since).catch((err) => console.error(`Slack import for ${slug} failed:`, err)));
+  }
   return Response.redirect(back, 303);
 }
