@@ -46,8 +46,8 @@ export default async function WorkspaceHome({
         <Link href={`/w/${slug}/setup`}>
           <Card className="hover:bg-surface-hover h-full transition-colors">
             <CardHeader>
-              <CardTitle className="font-light">MCP setup</CardTitle>
-              <CardDescription>Connect Claude Code</CardDescription>
+              <CardTitle className="font-light">Setup</CardTitle>
+              <CardDescription>Connect tools, link accounts and Claude Code</CardDescription>
             </CardHeader>
           </Card>
         </Link>
