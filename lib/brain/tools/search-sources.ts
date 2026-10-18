@@ -23,6 +23,7 @@ export function formatSource(s: FoundSource, query: string, index: number): stri
     `${index}. [${s.kind}] ${s.title} (${day(s.at)})${who ? ` ${who}` : ""}${s.parent ? `, in ${s.parent}` : ""}${s.near ? ", same conversation as a hit above" : ""}`,
     s.url ? `   ${s.url}` : "",
     `   ${snippet(s.text, query)}`,
+    ...s.reviews.map((r) => `   Review: ${r}`),
   ]
     .filter(Boolean)
     .join("\n");

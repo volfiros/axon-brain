@@ -13,6 +13,8 @@ export type FoundSource = {
   authors: string[];
   attendees: string[];
   parent: string | null;
+  /** A PR's reviews and comments, with who wrote them. */
+  reviews: string[];
   /** The search hit this message was pulled in for, when it came from the conversation around one. */
   near: string | null;
 };
@@ -35,7 +37,7 @@ type Hit = { id: string; channel: string | null; at: string };
 
 const shift = (at: string, hours: number) => new Date(Date.parse(`${at}Z`) + hours * 3_600_000).toISOString().slice(0, 19);
 
-/** Full-text search over Sources the caller can see. Each top message hit brings the messages around it in its channel. */
+/** Full-text search over Sources the caller can see, plus Sources ABOUT a Topic the query names. Top hits bring the Sources they reference or are referenced by, then the messages around them in their channel. */
 export async function searchSources(ctx: BrainContext, query: string, options: SearchOptions = {}): Promise<FoundSource[] | null> {
   const { limit = 10, expand = 5, around = 4, windowHours = 6, pool = 2000 } = options;
   const direct = options.direct ?? limit;
@@ -62,6 +64,21 @@ export async function searchSources(ctx: BrainContext, query: string, options: S
     .sort((a, b) => b.coverage - a.coverage || b.score - a.score || b.at.localeCompare(a.at))
     .slice(0, direct);
 
+  // A Source linked to a Topic is found by the topic's words even when its own text uses different ones.
+  const topical = await readAsCaller<{ topic: string; name: string; id: string }>(
+    ctx,
+    `${FROM_CALLER}
+     MATCH (t:Topic)<-[:ABOUT]-(s:Source)
+     WHERE any(w IN $stems WHERE toLower(t.name) CONTAINS w) AND s.deleted_at IS NULL AND ${visible("s")}
+     RETURN t.id AS topic, toLower(t.name) AS name, s.id AS id`,
+    { stems },
+  );
+  const topics = [...new Map(topical.map((t) => [t.topic, t.name])).entries()]
+    .map(([topic, name]) => ({ topic, covered: stems.filter((w) => name.includes(w)).length, coverage: coverage(name) }))
+    .filter((t) => t.covered >= 2)
+    .sort((a, b) => b.coverage - a.coverage)
+    .slice(0, 2);
+
   const anchors = hits.slice(0, expand).filter((h) => h.channel);
   const neighbours = anchors.length
     ? await readAsCaller<{ hit: string; id: string; at: string }>(
@@ -76,12 +93,26 @@ export async function searchSources(ctx: BrainContext, query: string, options: S
       )
     : [];
 
+  const referenced = hits.length
+    ? await readAsCaller<{ hit: string; id: string }>(
+        ctx,
+        `${FROM_CALLER}
+         UNWIND $ids AS hid
+         MATCH (h:Source {id: hid})-[:REFERENCES]-(s:Source)
+         WHERE s.deleted_at IS NULL AND ${visible("s")}
+         RETURN hid AS hit, s.id AS id`,
+        { ids: hits.slice(0, expand).map((h) => h.id) },
+      )
+    : [];
+
   const order: { id: string; near: string | null }[] = [];
   const seen = new Set<string>();
   const push = (id: string, near: string | null) => {
     if (!seen.has(id)) order.push({ id, near }), seen.add(id);
   };
   for (const hit of hits) push(hit.id, null);
+  for (const t of topics) for (const s of topical.filter((s) => s.topic === t.topic)) push(s.id, null);
+  for (const hit of hits) for (const r of referenced.filter((r) => r.hit === hit.id)) push(r.id, hit.id);
   for (const hit of hits) {
     const gap = (at: string) => Math.abs(Date.parse(`${at}Z`) - Date.parse(`${hit.at}Z`));
     neighbours
@@ -103,8 +134,12 @@ export async function searchSources(ctx: BrainContext, query: string, options: S
      OPTIONAL MATCH (m:Person)-[:ATTENDED]->(s)
      WITH u, role, s, authors, collect(DISTINCT m.name) AS attendees
      OPTIONAL MATCH (s)-[:PART_OF]->(p:Source) WHERE ${visible("p")}
+     WITH u, role, s, authors, attendees, head(collect(p.title)) AS parent
+     OPTIONAL MATCH (r:Message)-[:PART_OF]->(s:PR) WHERE ${visible("r")}
+     OPTIONAL MATCH (ra:Person)-[:AUTHORED]->(r)
      RETURN s.id AS id, s.external_id AS externalId, [l IN labels(s) WHERE l <> 'Source'][0] AS kind, s.title AS title,
-            s.url AS url, s.created_at AS at, s.text AS text, authors, attendees, head(collect(p.title)) AS parent`,
+            s.url AS url, s.created_at AS at, s.text AS text, authors, attendees, parent,
+            [x IN collect(DISTINCT CASE WHEN r IS NULL THEN null ELSE left(r.text, 120) + coalesce(' (' + ra.name + ')', '') END) WHERE x IS NOT NULL] AS reviews`,
     { ids },
   );
   const byId = new Map(rows.map((r) => [r.id, r]));

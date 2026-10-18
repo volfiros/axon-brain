@@ -249,7 +249,7 @@ Link Slack and Link GitHub need `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET`, `GITHU
 
 ## Benchmark
 
-We ran Axon against [HERB](https://github.com/SalesforceAIResearch/HERB), Salesforce's enterprise deep-search benchmark (30 products, 43,209 Sources across Slack messages, docs, meetings and PRs, 815 answerable questions). Source search finds cited evidence in the first 10 results for 88% of questions, against 31% for FalkorDB full-text alone and 32% for a random order. Method, every number and the limits are in [docs/benchmark.md](docs/benchmark.md).
+We ran Axon against [HERB](https://github.com/SalesforceAIResearch/HERB), Salesforce's enterprise deep-search benchmark (30 products, 43,209 Sources across Slack messages, docs, meetings and PRs, 815 answerable questions). Source search finds cited evidence in the first 10 results for 88% of questions, against 31% for FalkorDB full-text alone and 32% for a random order. With DeepSeek V3 answering from one search, Axon averages 36.9 over HERB's four answerable question types, where the paper's best agentic RAG reaches 32.96, though the setups differ. With an agent (DeepSeek V4 Flash) calling `search_sources` up to 8 times, the average reaches 75.3 on the first five products, against 43.8 for the single search on the same questions. Method, every number and the limits are in [docs/benchmark.md](docs/benchmark.md).
 
 ## What we tested
 

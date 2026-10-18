@@ -16,7 +16,8 @@
     "prepare": "husky",
     "herb:load": "tsx --env-file-if-exists=.env scripts/herb/load.ts",
     "herb:retrieval": "tsx --env-file-if-exists=.env scripts/herb/retrieval.ts",
-    "herb:answer": "tsx --env-file-if-exists=.env scripts/herb/answer.ts"
+    "herb:answer": "tsx --env-file-if-exists=.env scripts/herb/answer.ts",
+    "herb:topics": "tsx --env-file-if-exists=.env scripts/herb/topics.ts"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",
