@@ -34,3 +34,13 @@ export function useTestGraphs(): { prefix: string } {
   });
   return { prefix };
 }
+
+/** Every graph name on the test database, read over a separate connection. */
+export async function listGraphs(): Promise<string[]> {
+  const db = await FalkorDB.connect({ socket: falkorSocket() });
+  try {
+    return await db.list();
+  } finally {
+    await db.close();
+  }
+}
