@@ -13,7 +13,7 @@ import { newInviteAction, revokeInviteAction } from "./actions";
 export function InvitePanel({ slug, role, link }: { slug: string; role: InviteRole; link: string | null }) {
   const [pending, startTransition] = useTransition();
 
-  function regenerate() {
+  function create() {
     startTransition(async () => {
       const { error } = await newInviteAction(slug, role);
       if (error) toast.error(error);
@@ -25,9 +25,19 @@ export function InvitePanel({ slug, role, link }: { slug: string; role: InviteRo
       <p className="text-sm font-medium">{role} link</p>
       {link && <CodeSnippet code={link} label={`${role} invite link`} />}
       <div className="flex flex-wrap gap-2">
-        <Button variant="secondary" shape="pill" onClick={regenerate} loading={pending}>
-          {link ? `Replace ${role} link` : `Create ${role} link`}
-        </Button>
+        {link ? (
+          <ConfirmButton
+            label={`Replace ${role} link`}
+            title={`Replace the ${role} invite link?`}
+            description="The current link stops working right away. People who already joined stay."
+            confirmLabel="Replace"
+            onConfirm={() => newInviteAction(slug, role)}
+          />
+        ) : (
+          <Button variant="secondary" shape="pill" onClick={create} loading={pending}>
+            {`Create ${role} link`}
+          </Button>
+        )}
         {link && (
           <ConfirmButton
             label={`Revoke ${role} link`}

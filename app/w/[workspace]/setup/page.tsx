@@ -11,8 +11,15 @@ import { linkedIdentities } from "@/lib/connectors/identity";
 import { workspaceGraph } from "@/lib/graph/client";
 import { workspaceResource } from "@/lib/workspaces";
 
-export default async function SetupPage({ params }: { params: Promise<{ workspace: string }> }) {
+export default async function SetupPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ workspace: string }>;
+  searchParams: Promise<{ link?: string }>;
+}) {
   const { workspace: slug } = await params;
+  const { link } = await searchParams;
   const { workspace, member } = await requireMember(slug, `/w/${slug}/setup`);
   const url = workspaceResource(slug);
   const mcpJson = JSON.stringify({ mcpServers: { axon: { type: "http", url } } }, null, 2);
@@ -35,7 +42,7 @@ export default async function SetupPage({ params }: { params: Promise<{ workspac
     {
       title: "Link your accounts",
       description: "Your Slack and GitHub activity then counts as yours.",
-      content: <LinkAccountButtons slug={slug} linked={linked} />,
+      content: <LinkAccountButtons slug={slug} linked={linked} from="setup" result={link} />,
     },
     {
       title: "Add Axon to Claude Code",

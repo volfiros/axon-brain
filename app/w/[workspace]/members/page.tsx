@@ -12,14 +12,6 @@ import { leaveWorkspaceAction } from "./actions";
 import { InvitePanel } from "./invite-panel";
 import { MembersTable } from "./members-table";
 
-const LINK_RESULTS: Record<string, string> = {
-  linked: "Linked. Your activity from that account now counts as yours.",
-  "already linked": "That account was already linked to you.",
-  taken: "That account is linked to another member. Ask an Admin.",
-  failed: "Linking failed. Try again.",
-  cancelled: "Linking was cancelled.",
-};
-
 export default async function MembersPage({
   params,
   searchParams,
@@ -45,9 +37,8 @@ export default async function MembersPage({
           <CardTitle>Your accounts</CardTitle>
           <CardDescription>Your Slack and GitHub activity counts as yours once linked.</CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          {link && LINK_RESULTS[link] && <p className="text-secondary-foreground text-sm">{LINK_RESULTS[link]}</p>}
-          <LinkAccountButtons slug={slug} linked={linked} />
+        <CardContent>
+          <LinkAccountButtons slug={slug} linked={linked} from="members" result={link} />
         </CardContent>
       </Card>
       {isAdmin && (

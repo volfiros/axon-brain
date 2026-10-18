@@ -1,10 +1,8 @@
 import { BookOpenIcon, InboxIcon, MessageSquareIcon } from "lucide-react";
-import Link from "next/link";
 
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { RoleBadge } from "@/components/role-badge";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { requireMember } from "@/lib/auth/session";
 import { listAnswers } from "@/lib/brain/answers";
@@ -34,24 +32,6 @@ export default async function WorkspaceHome({
   return (
     <>
       <PageHeader title={workspace.name} actions={<RoleBadge role={member.role} />} />
-      <div className="grid gap-4 md:grid-cols-2">
-        <Link href={`/w/${slug}/members`}>
-          <Card className="hover:bg-surface-hover h-full transition-colors">
-            <CardHeader>
-              <CardTitle className="font-light">Members</CardTitle>
-              <CardDescription>Roles and invites</CardDescription>
-            </CardHeader>
-          </Card>
-        </Link>
-        <Link href={`/w/${slug}/setup`}>
-          <Card className="hover:bg-surface-hover h-full transition-colors">
-            <CardHeader>
-              <CardTitle className="font-light">Setup</CardTitle>
-              <CardDescription>Connect tools, link accounts and Claude Code</CardDescription>
-            </CardHeader>
-          </Card>
-        </Link>
-      </div>
       <Tabs defaultValue="decisions" className="gap-4">
         <TabsList variant="pill">
           <TabsTrigger value="decisions" variant="pill">

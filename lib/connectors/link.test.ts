@@ -6,8 +6,9 @@ import { githubIdentity, signLinkState, verifyLinkState } from "./link";
 
 process.env.CONNECTOR_STATE_SECRET = "test-state-secret";
 
-test("A link state names the workspace and the account that started linking", () => {
-  assert.deepEqual(verifyLinkState(signLinkState("acme", "acct1")), { slug: "acme", accountId: "acct1" });
+test("A link state names the workspace, the account that started linking and the page to return to", () => {
+  assert.deepEqual(verifyLinkState(signLinkState("acme", "acct1")), { slug: "acme", accountId: "acct1", page: "members" });
+  assert.deepEqual(verifyLinkState(signLinkState("acme", "acct1", "setup")), { slug: "acme", accountId: "acct1", page: "setup" });
 });
 
 test("A tampered link state, or a connector install state, is not a link state", () => {

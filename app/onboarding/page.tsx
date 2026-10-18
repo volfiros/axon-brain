@@ -5,7 +5,6 @@ import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { PageShell } from "@/components/page-shell";
 import { RoleBadge } from "@/components/role-badge";
-import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { appUrl } from "@/lib/auth";
 import { requireAccount } from "@/lib/auth/session";
@@ -31,29 +30,19 @@ export default async function OnboardingPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Workspace</TableHead>
-              <TableHead hideOnMobile>Role</TableHead>
-              <TableHead className="text-right">Open</TableHead>
+              <TableHead>Role</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {memberships.map((membership) => (
               <TableRow key={membership.id}>
-                <TableCell>{membership.name}</TableCell>
-                <TableCell hideOnMobile>
-                  <RoleBadge role={membership.role} />
+                <TableCell>
+                  <Link href={`/w/${membership.slug}`} className="underline-offset-4 hover:underline">
+                    {membership.name}
+                  </Link>
                 </TableCell>
                 <TableCell>
-                  <div className="flex justify-end gap-2">
-                    <Button variant="tab" size="sm" shape="pill" asChild>
-                      <Link href={`/w/${membership.slug}`}>Home</Link>
-                    </Button>
-                    <Button variant="tab" size="sm" shape="pill" className="max-md:hidden" asChild>
-                      <Link href={`/w/${membership.slug}/setup`}>Setup</Link>
-                    </Button>
-                    <Button variant="tab" size="sm" shape="pill" className="max-md:hidden" asChild>
-                      <Link href={`/w/${membership.slug}/members`}>Members</Link>
-                    </Button>
-                  </div>
+                  <RoleBadge role={membership.role} />
                 </TableCell>
               </TableRow>
             ))}

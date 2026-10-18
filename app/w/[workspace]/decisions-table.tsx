@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { ConfirmButton } from "@/components/confirm-button";
 import { DecisionStatusBadge } from "@/components/decision-status-badge";
-import { Note, SheetField as Field } from "@/components/sheet-field";
+import { DecidedFields, Note, SheetField as Field } from "@/components/sheet-field";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { DecisionView } from "@/lib/brain/overview";
@@ -80,15 +80,6 @@ export function DecisionsTable({
 }
 
 function DecisionDetail({ decision, slug, canWrite }: { decision: DecisionView; slug: string; canWrite: boolean }) {
-  const decided = [
-    decision.maker ?? "Unknown",
-    decision.approver ? `approved by ${decision.approver}` : null,
-    decision.date,
-    decision.replaced ? `replaced ${decision.replaced}` : null,
-  ]
-    .filter(Boolean)
-    .join(", ");
-
   return (
     <>
       <SheetHeader>
@@ -112,9 +103,7 @@ function DecisionDetail({ decision, slug, canWrite }: { decision: DecisionView; 
         <Field label="Affects">
           <List items={decision.affects} empty="Nothing linked" />
         </Field>
-        <Field label="Decided by">
-          <span>{decided}</span>
-        </Field>
+        <DecidedFields maker={decision.maker} approver={decision.approver} date={decision.date} replaced={decision.replaced} />
         <Field label="Source">
           {decision.sources.length === 0 && <Note>None you can see</Note>}
           {decision.sources.map((source) => (

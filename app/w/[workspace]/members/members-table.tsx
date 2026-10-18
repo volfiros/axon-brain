@@ -5,6 +5,7 @@ import { useState } from "react";
 import { ConfirmButton } from "@/components/confirm-button";
 import { RoleBadge } from "@/components/role-badge";
 import { SheetField } from "@/components/sheet-field";
+import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { Member } from "@/lib/workspaces";
@@ -48,9 +49,12 @@ export function MembersTable({
               }}
             >
               <TableCell>
-                <button type="button" className="text-left">
-                  {person.name}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button type="button" className="text-left">
+                    {person.name}
+                  </button>
+                  {person.personId === selfId && <Badge variant="muted">You</Badge>}
+                </div>
               </TableCell>
               <TableCell className="text-secondary-foreground">{person.handle}</TableCell>
               <TableCell>
