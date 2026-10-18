@@ -26,6 +26,8 @@ const RANGE_INDEXES: [label: string, property: string][] = [
   ["Person", "account_id"],
   ["CodeUnit", "path"],
   ["Decision", "status"],
+  ["Meeting", "id"],
+  ["Meeting", "created_at"],
 ];
 
 const FULLTEXT_INDEXES: [label: string, properties: string[]][] = [

@@ -124,7 +124,7 @@ RETURN d
 
 | Kind | Indexed |
 | --- | --- |
-| Range | `id` on every core label, `Person.account_id`, `CodeUnit.path`, `Decision.status` |
+| Range | `id` on every core label, `Person.account_id`, `CodeUnit.path`, `Decision.status`, `Meeting(id, created_at)` |
 | Full-text | `Decision(title, statement)`, `Excerpt(text)` |
 | Vector | `Decision.embedding`, cosine, only when `EMBEDDING_DIMENSION` is set |
 
@@ -574,7 +574,7 @@ An Admin connects Plane and Slack once per Workspace and Axon keeps them in sync
 
 - Every connector Source carries `connector`, `external_id`, `url`, `created_at`, `updated_at` and `synced_at`. A deleted message or work item gets `deleted_at` and stays in the graph.
 - A Person keeps every tool identity in `external_ids` (`plane:<id>`, `slack:<id>`). A new identity joins an existing Person when one already has that id, or on exact email. Handles never match, because anyone can pick one. Otherwise Axon creates `p_<connector>_<id>`.
-- A member links their own Slack or GitHub identity from `/w/<slug>/members` by signing in to that tool (Sign in with Slack through `/api/connectors/slack/link`, GitHub App user sign-in through `/api/connectors/github/link`). The signed state names the Workspace and Account, and a Slack user must belong to the Workspace's connected team. `linkIdentity` (`lib/connectors/identity.ts`) adds the key to the member's `external_ids`; when an imported Person holds it, that Person's `external_ids`, `email` and edges (`AUTHORED`, `OWNS`, `MEMBER_OF`, `SAVED`, `WORKED_ON`, and incoming `MADE_BY`, `APPROVED_BY`, `VISIBLE_TO`) move onto the member and it is deleted. An identity already on another member is refused. After a link, any imported Person (no `account_id`) with the member's email is absorbed the same way; that email comes from Slack or Plane, never from Axon sign-up.
+- A member links their own Slack or GitHub identity from `/w/<slug>/members` by signing in to that tool (Sign in with Slack through `/api/connectors/slack/link`, GitHub App user sign-in through `/api/connectors/github/link`). The signed state names the Workspace and Account, and a Slack user must belong to the Workspace's connected team. `linkIdentity` (`lib/connectors/identity.ts`) adds the key to the member's `external_ids`; when an imported Person holds it, that Person's `external_ids`, `email` and edges (`ATTENDED`, `AUTHORED`, `OWNS`, `MEMBER_OF`, `SAVED`, `WORKED_ON`, and incoming `MADE_BY`, `APPROVED_BY`, `VISIBLE_TO`) move onto the member and it is deleted. An identity already on another member is refused. After a link, any imported Person (no `account_id`) with the member's email is absorbed the same way; that email comes from Slack or Plane, never from Axon sign-up.
 - A Plane project that is not explicitly public, or a private Slack channel, is `restricted`: its Sources are `VISIBLE_TO` the Admin Role and the project or channel members. Everything else from these tools is `team`.
 - Sync: Plane webhooks (`/api/w/<slug>/plane/webhook`, HMAC in `X-Plane-Signature`), a Plane poll route (`/api/w/<slug>/plane/poll`) that fetches work items updated since the newest `updated_at`, and Slack Events (`/api/webhooks/slack` for every installed team, routed by `team_id`, and the older `/api/w/<slug>/slack/events`; v0 signature, five-minute replay window). Joining or leaving a private channel rewrites who can see its messages.
 - Connect: from `/w/<slug>/connectors` an Admin adds Slack through OAuth v2 (`/api/connectors/slack/callback`, signed `state`, bot token stored with its `team_id`; a team connected to another Workspace is refused until it is disconnected there) and Plane through a form (API key, workspace slug, optional self-hosted API URL, which must resolve to public addresses; Plane calls never follow redirects). Axon checks the Plane key, registers its webhook through Plane's v2 webhooks API and keeps the returned secret, or asks the Admin to paste one when Plane refuses. Connecting starts the first import; Sync now repeats it, continuing from the last finished sync, and is refused while another sync is still running.
@@ -644,13 +644,13 @@ MATCH (m:Message:Source {connector: 'slack'})-[r:REFERENCES]->(w:WorkItem:Source
 RETURN m.title, r.methods, w.key, w.title
 ```
 
-## Meetings (planned, not built)
+## Meetings (schema ready, no connector)
 
-No meeting connector exists yet. This shape is fixed now so a transcript import, and a loader for the HERB benchmark, write the same nodes.
+No meeting connector exists yet. The graph already accepts this shape, so a transcript import and a loader for the HERB benchmark write the same nodes: connectors may write `ATTENDED`, `Meeting` has range indexes on `id` and `created_at`, and linking an identity moves its `ATTENDED` edges to the member.
 
 | From | Node | Edges |
 | --- | --- | --- |
-| Meeting | `(:Source:Meeting)`, id `<connector>:<meeting id>`, `title`, `started_at`, `text` (speaker-labelled transcript) | attendees `ATTENDED`, organiser `AUTHORED`, `ABOUT` its Project when known |
+| Meeting | `(:Source:Meeting)`, id `<connector>:<meeting id>`, `title`, `created_at` (start time), `text` (speaker-labelled transcript) | attendees `ATTENDED`, organiser `AUTHORED`, `ABOUT` its Project when known |
 | Meeting chat line | `(:Source:Message)`, id `<connector>:<meeting id>:<n>` | `PART_OF` its Meeting, author `AUTHORED` |
 
 ```
