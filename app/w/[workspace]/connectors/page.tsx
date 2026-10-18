@@ -36,8 +36,17 @@ function stateOf(connected: boolean, status: ConnectorStatus | undefined, syncSt
   return "connected";
 }
 
+// FalkorDB returns localdatetime without a zone, and connectors store it in UTC.
+function syncedTime(syncedAt: string): string {
+  const at = new Date(`${syncedAt}Z`);
+  if (Number.isNaN(at.getTime())) return `${syncedAt.replace("T", " ")} UTC`;
+  const month = at.toLocaleString("en-GB", { month: "short", timeZone: "UTC" });
+  const time = at.toISOString().slice(11, 16);
+  return `${at.getUTCDate()} ${month} ${time} UTC`;
+}
+
 function syncedLine(syncedAt: string | null | undefined, count: number): string {
-  const synced = syncedAt ? `Last synced ${syncedAt.replace("T", " ")} UTC` : "Not synced yet";
+  const synced = syncedAt ? `Last synced ${syncedTime(syncedAt)}` : "Not synced yet";
   return `${synced}. ${count} ${count === 1 ? "source" : "sources"}.`;
 }
 
@@ -135,7 +144,7 @@ export default async function ConnectorsPage({ params }: { params: Promise<{ wor
         <ConnectorCard
           title="Slack"
           state={slackState}
-          description={slack?.fromEnv ? "Configured by server environment" : slackStored?.label}
+          description={slack?.fromEnv ? "Set up by the server" : slackStored?.label}
           details={syncedLine(slackStored?.synced_at, counts.slack ?? 0)}
           error={errorLine(slackState, slackStored)}
         >
@@ -153,7 +162,7 @@ export default async function ConnectorsPage({ params }: { params: Promise<{ wor
         <ConnectorCard
           title="Plane"
           state={planeState}
-          description={plane?.fromEnv ? "Configured by server environment" : planeStored?.label}
+          description={plane?.fromEnv ? "Set up by the server" : planeStored?.label}
           details={syncedLine(planeStored?.synced_at, counts.plane ?? 0)}
           error={errorLine(planeState, planeStored)}
         >

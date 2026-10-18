@@ -28,7 +28,10 @@ export type DecisionTrail = {
   because: string[];
   hiddenReasons: string;
   rejected: string[];
-  decidedBy: string;
+  maker: string | null;
+  approver: string | null;
+  date: string;
+  replaced: string | null;
   sources: { quote: string; title: string; url: string | null }[];
   hiddenSources: string;
   paths: { id: string; name: string }[][];
@@ -145,12 +148,6 @@ export async function decisionTrail(ctx: BrainContext, id: string): Promise<Deci
     { ids: chains.flat() },
   );
   const nameOf = new Map(names.map((n) => [n.id, n.name]));
-  const decided = [
-    d.maker ?? "Unknown",
-    d.approver ? `approved by ${d.approver}` : null,
-    day(d.validFrom),
-    d.validTo ? `replaced ${day(d.validTo)}` : null,
-  ];
   return {
     id: d.id,
     title: d.title,
@@ -159,7 +156,10 @@ export async function decisionTrail(ctx: BrainContext, id: string): Promise<Deci
     because: d.because,
     hiddenReasons: await restrictedNote(ctx, d.hiddenReasons, "reason"),
     rejected: d.rejected,
-    decidedBy: decided.filter(Boolean).join(", "),
+    maker: d.maker,
+    approver: d.approver,
+    date: day(d.validFrom),
+    replaced: d.validTo ? day(d.validTo) : null,
     sources: d.sources.map(({ quote, title, url }) => ({ quote, title, url })),
     hiddenSources: await restrictedNote(ctx, d.hiddenSources, "source"),
     paths: chains.filter((chain) => chain.length > 1).map((chain) => chain.map((hop) => ({ id: hop, name: nameOf.get(hop) ?? hop }))),

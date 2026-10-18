@@ -6,23 +6,25 @@ import { workspaceForSlackTeam } from "./credentials";
 import { stateSignature } from "./github/connection";
 
 export type LinkProvider = "slack" | "github";
+export type LinkPage = "members" | "setup";
 
 const STATE_TTL_SECONDS = 10 * 60;
 
 // The state names the account that started linking, so a link URL sent to someone else cannot attach their identity.
-export function signLinkState(slug: string, accountId: string): string {
-  const payload = `link:${slug}:${accountId}.${Math.floor(Date.now() / 1000) + STATE_TTL_SECONDS}`;
+export function signLinkState(slug: string, accountId: string, page: LinkPage = "members"): string {
+  const payload = `link:${slug}:${accountId}:${page}.${Math.floor(Date.now() / 1000) + STATE_TTL_SECONDS}`;
   return `${payload}.${stateSignature(payload)}`;
 }
 
-export function verifyLinkState(state: string): { slug: string; accountId: string } | null {
+export function verifyLinkState(state: string): { slug: string; accountId: string; page: LinkPage } | null {
   const [body, expires, signature] = state.split(".");
-  const [prefix, slug, accountId] = (body ?? "").split(":");
+  const [prefix, slug, accountId, page] = (body ?? "").split(":");
   if (prefix !== "link" || !slug || !accountId || !expires || !signature) return null;
   const expected = Buffer.from(stateSignature(`${body}.${expires}`));
   const given = Buffer.from(signature);
   if (given.length !== expected.length || !timingSafeEqual(given, expected)) return null;
-  return Number(expires) > Date.now() / 1000 ? { slug, accountId } : null;
+  if (Number(expires) <= Date.now() / 1000) return null;
+  return { slug, accountId, page: page === "setup" ? "setup" : "members" };
 }
 
 // Slack accepts any redirect under a registered Redirect URL, so this reuses the install callback's path.
@@ -35,8 +37,8 @@ export function linkConfigured(provider: LinkProvider): boolean {
   return Boolean(process.env.CONNECTOR_STATE_SECRET) && ids.every((name) => process.env[name]);
 }
 
-export function linkUrl(provider: LinkProvider, slug: string, accountId: string): string {
-  const state = signLinkState(slug, accountId);
+export function linkUrl(provider: LinkProvider, slug: string, accountId: string, page: LinkPage): string {
+  const state = signLinkState(slug, accountId, page);
   if (provider === "slack") {
     const query = new URLSearchParams({
       response_type: "code",

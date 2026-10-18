@@ -21,3 +21,36 @@ export function SourceLink({ href, children }: { href: string | null; children: 
     </a>
   );
 }
+
+export function DecidedFields({
+  maker,
+  approver,
+  date,
+  replaced,
+}: {
+  maker: string | null;
+  approver: string | null;
+  date: string;
+  replaced: string | null;
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      <SheetField label="Decided by">
+        <span>{maker ?? "Unknown"}</span>
+      </SheetField>
+      <SheetField label="Date">
+        <span>{date}</span>
+      </SheetField>
+      {approver && (
+        <SheetField label="Approved by">
+          <span>{approver}</span>
+        </SheetField>
+      )}
+      {replaced && (
+        <SheetField label="Replaced">
+          <span>{replaced}</span>
+        </SheetField>
+      )}
+    </div>
+  );
+}

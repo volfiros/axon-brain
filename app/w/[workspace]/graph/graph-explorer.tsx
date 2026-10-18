@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { DECISION_STATES, DecisionStatusBadge, type DecisionState } from "@/components/decision-status-badge";
-import { Note, SheetField as Field, SourceLink } from "@/components/sheet-field";
+import { DecidedFields, Note, SheetField as Field, SourceLink } from "@/components/sheet-field";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -243,9 +243,7 @@ function DecisionFields({ trail }: { trail: DecisionTrail }) {
       <Field label="Rejected alternatives">
         <List items={trail.rejected} empty="No alternatives recorded" />
       </Field>
-      <Field label="Decided by">
-        <span>{trail.decidedBy}</span>
-      </Field>
+      <DecidedFields maker={trail.maker} approver={trail.approver} date={trail.date} replaced={trail.replaced} />
       <Field label="Source">
         {trail.sources.length === 0 && <Note>None you can see</Note>}
         {trail.sources.map((s) => (
