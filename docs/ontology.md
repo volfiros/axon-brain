@@ -197,6 +197,18 @@ RETURN d.id, d.sensitivity, affects
 ORDER BY coalesce(d.valid_from, d.recorded_at) DESC
 ```
 
+The Graph page (`lib/brain/graph-view.ts`) draws what the caller can see. Decisions, Sources, Constraints and Assumptions pass `visible(n)`; Persons, Topics and CodeUnits appear only next to one of those; Excerpts only when their Source is visible. Dismissed Decisions and deleted Sources are left out. The page keeps at most 300 nodes, Decisions first, and says when it cut some. Edges are then read only between the ids that passed, without `VISIBLE_TO`.
+
+```cypher
+MATCH (u:Person {id: $personId})-[:HAS_ROLE]->(role:Role)
+MATCH (a)-[r]-(n)
+WHERE (a:Decision OR a:Source OR a:Constraint OR a:Assumption) AND <visible(a)>
+  AND (n:Person OR n:Topic OR n:CodeUnit) AND type(r) <> 'VISIBLE_TO'
+RETURN DISTINCT n
+```
+
+Selecting a Decision highlights the same directed shortest paths recall prints (`decisionPaths`: Decision to one visible Source through its Excerpt, and Decision to its maker), returned as node ids.
+
 ## Customization
 
 The workspace schema lives in the graph:

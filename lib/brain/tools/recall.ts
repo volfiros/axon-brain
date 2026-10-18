@@ -166,13 +166,21 @@ export async function decisionDetails(ctx: BrainContext, ids: string[]): Promise
   return new Map(rows.map((r) => [r.id, r]));
 }
 
-type GraphPaths = { id: string; sourceNodes: string[] | null; sourceRels: string[] | null; makerNodes: string[] | null; makerRels: string[] | null };
+export type GraphPaths = {
+  id: string;
+  sourceNodes: string[] | null;
+  sourceRels: string[] | null;
+  sourceIds: string[] | null;
+  makerNodes: string[] | null;
+  makerRels: string[] | null;
+  makerIds: string[] | null;
+};
 
 const HOP_LABEL = "[l IN labels(n) WHERE l <> 'Source'][0]";
 const HOP = `'(' + coalesce(${HOP_LABEL} + ': ' + coalesce(n.name, n.title), ${HOP_LABEL}) + ')'`;
 
 /** The directed shortest paths from each visible decision to one visible source and to its maker, as rendered hops. */
-async function decisionPaths(ctx: BrainContext, ids: string[]): Promise<Map<string, GraphPaths>> {
+export async function decisionPaths(ctx: BrainContext, ids: string[]): Promise<Map<string, GraphPaths>> {
   const rows = await readAsCaller<GraphPaths>(
     ctx,
     `${FROM_CALLER}
@@ -186,7 +194,8 @@ async function decisionPaths(ctx: BrainContext, ids: string[]): Promise<Map<stri
           CASE WHEN p IS NULL THEN null ELSE shortestPath((d)-[:MADE_BY]->(p)) END AS toMaker
      RETURN d.id AS id,
             [n IN nodes(toSource) | ${HOP}] AS sourceNodes, [r IN relationships(toSource) | '-[:' + type(r) + ']->'] AS sourceRels,
-            [n IN nodes(toMaker) | ${HOP}] AS makerNodes, [r IN relationships(toMaker) | '-[:' + type(r) + ']->'] AS makerRels`,
+            [n IN nodes(toMaker) | ${HOP}] AS makerNodes, [r IN relationships(toMaker) | '-[:' + type(r) + ']->'] AS makerRels,
+            [n IN nodes(toSource) | n.id] AS sourceIds, [n IN nodes(toMaker) | n.id] AS makerIds`,
     { ids },
   );
   return new Map(rows.map((r) => [r.id, r]));
