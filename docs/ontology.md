@@ -321,6 +321,14 @@ WHERE s.id <> h.id AND s.created_at >= localdatetime(h.from) AND s.created_at <=
 RETURN h.id AS hit, s.id
 ```
 
+Sources `ABOUT` a Topic come right after the direct hits when the Topic's name holds at least two of the query words (the two best Topics at most). This finds a PR titled by its task ("Integrate TensorFlow LSTM") from a question naming its feature ("predictive analytics"), once an agent or a teammate has linked the two.
+
+```cypher
+MATCH (t:Topic)<-[:ABOUT]-(s:Source)
+WHERE any(w IN $stems WHERE toLower(t.name) CONTAINS w) AND s.deleted_at IS NULL AND <visible(s)>
+RETURN t.id AS topic, toLower(t.name) AS name, s.id
+```
+
 ### Recall
 
 Three entry points, each filtered by visibility and skipping dismissed decisions, then expanded to reasons, alternatives, sources and history. Ranking: superseded last, then by how many question words appear in the decision's title and statement, then accepted before proposed, then by full-text score. FalkorDB full-text scores vary too much between nodes to rank on alone.

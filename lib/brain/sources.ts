@@ -37,7 +37,7 @@ type Hit = { id: string; channel: string | null; at: string };
 
 const shift = (at: string, hours: number) => new Date(Date.parse(`${at}Z`) + hours * 3_600_000).toISOString().slice(0, 19);
 
-/** Full-text search over Sources the caller can see. Top hits bring the Sources they reference or are referenced by, then the messages around them in their channel. */
+/** Full-text search over Sources the caller can see, plus Sources ABOUT a Topic the query names. Top hits bring the Sources they reference or are referenced by, then the messages around them in their channel. */
 export async function searchSources(ctx: BrainContext, query: string, options: SearchOptions = {}): Promise<FoundSource[] | null> {
   const { limit = 10, expand = 5, around = 4, windowHours = 6, pool = 2000 } = options;
   const direct = options.direct ?? limit;
@@ -63,6 +63,21 @@ export async function searchSources(ctx: BrainContext, query: string, options: S
     .map((c) => ({ ...c, coverage: coverage(c.text) }))
     .sort((a, b) => b.coverage - a.coverage || b.score - a.score || b.at.localeCompare(a.at))
     .slice(0, direct);
+
+  // A Source linked to a Topic is found by the topic's words even when its own text uses different ones.
+  const topical = await readAsCaller<{ topic: string; name: string; id: string }>(
+    ctx,
+    `${FROM_CALLER}
+     MATCH (t:Topic)<-[:ABOUT]-(s:Source)
+     WHERE any(w IN $stems WHERE toLower(t.name) CONTAINS w) AND s.deleted_at IS NULL AND ${visible("s")}
+     RETURN t.id AS topic, toLower(t.name) AS name, s.id AS id`,
+    { stems },
+  );
+  const topics = [...new Map(topical.map((t) => [t.topic, t.name])).entries()]
+    .map(([topic, name]) => ({ topic, covered: stems.filter((w) => name.includes(w)).length, coverage: coverage(name) }))
+    .filter((t) => t.covered >= 2)
+    .sort((a, b) => b.coverage - a.coverage)
+    .slice(0, 2);
 
   const anchors = hits.slice(0, expand).filter((h) => h.channel);
   const neighbours = anchors.length
@@ -96,6 +111,7 @@ export async function searchSources(ctx: BrainContext, query: string, options: S
     if (!seen.has(id)) order.push({ id, near }), seen.add(id);
   };
   for (const hit of hits) push(hit.id, null);
+  for (const t of topics) for (const s of topical.filter((s) => s.topic === t.topic)) push(s.id, null);
   for (const hit of hits) for (const r of referenced.filter((r) => r.hit === hit.id)) push(r.id, hit.id);
   for (const hit of hits) {
     const gap = (at: string) => Math.abs(Date.parse(`${at}Z`) - Date.parse(`${hit.at}Z`));

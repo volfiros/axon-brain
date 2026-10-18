@@ -75,3 +75,28 @@ test("a message hit brings the PR it links to", async () => {
   const found = (await searchSources(admin, "predictive analytics", { limit: 2, direct: 1 }))!;
   assert.deepEqual(found.map((s) => s.title), ["Message in #payments", "Integrate LSTM forecasting"]);
 });
+
+test("a query naming a topic finds the Sources about it, even in other words", async () => {
+  await writeBatch(admin.graph, {
+    sources: [
+      {
+        connector: "github",
+        external_id: "acme/pay/pull/9",
+        labels: ["PR"],
+        title: "Integrate TensorFlow LSTM",
+        text: "Adds the model.",
+        url: "https://github.com/acme/pay/pull/9",
+        created_at: at(0),
+        sensitivity: "team",
+      },
+    ],
+  });
+  await say("4.1", "Analytics dashboards load slowly", 1);
+  await admin.graph.query(
+    "MATCH (s:PR {id: 'github:acme/pay/pull/9'}) MERGE (t:Topic {id: 'topic:predictive'}) SET t.name = 'Predictive analytics' MERGE (s)-[:ABOUT]->(t)",
+  );
+
+  const found = (await searchSources(admin, "predictive analytics", { limit: 2, direct: 1 }))!;
+  assert.deepEqual(found.map((s) => s.title), ["Message in #payments", "Integrate TensorFlow LSTM"]);
+  assert.equal((await searchSources(guest, "predictive analytics"))!.length, 0);
+});
