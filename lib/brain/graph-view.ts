@@ -31,7 +31,7 @@ export type DecisionTrail = {
   decidedBy: string;
   sources: { quote: string; title: string; url: string | null }[];
   hiddenSources: string;
-  paths: string[][];
+  paths: { id: string; name: string }[][];
   pathNodes: string[];
   pathEdges: { source: string; target: string }[];
 };
@@ -94,6 +94,13 @@ export async function decisionTrail(ctx: BrainContext, id: string): Promise<Deci
   if (!d) return null;
   const path = paths.get(id);
   const chains = [path?.sourceIds ?? [], path?.makerIds ?? []];
+  // These ids come from recall's visible-only path query; names are read here so hops cut by the node cap still show.
+  const names = await ctx.graph.roQuery<{ id: string; name: string }>(
+    `MATCH (n) WHERE n.id IN $ids
+     RETURN n.id AS id, CASE WHEN n:Excerpt THEN 'Quote' ELSE coalesce(n.name, n.title, n.id) END AS name`,
+    { ids: chains.flat() },
+  );
+  const nameOf = new Map(names.map((n) => [n.id, n.name]));
   const decided = [
     d.maker ?? "Unknown",
     d.approver ? `approved by ${d.approver}` : null,
@@ -111,7 +118,7 @@ export async function decisionTrail(ctx: BrainContext, id: string): Promise<Deci
     decidedBy: decided.filter(Boolean).join(", "),
     sources: d.sources.map(({ quote, title, url }) => ({ quote, title, url })),
     hiddenSources: await restrictedNote(ctx, d.hiddenSources, "source"),
-    paths: chains.filter((chain) => chain.length > 1),
+    paths: chains.filter((chain) => chain.length > 1).map((chain) => chain.map((hop) => ({ id: hop, name: nameOf.get(hop) ?? hop }))),
     pathNodes: [...new Set([d.id, ...chains.flat()])],
     pathEdges: chains.flatMap((chain) => chain.slice(1).map((target, i) => ({ source: chain[i], target }))),
   };

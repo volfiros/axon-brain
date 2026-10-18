@@ -2,7 +2,7 @@
 
 import { ArrowRightIcon, XIcon } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { DECISION_STATES, DecisionStatusBadge, type DecisionState } from "@/components/decision-status-badge";
 import { Note, SheetField as Field, SourceLink } from "@/components/sheet-field";
@@ -61,12 +61,15 @@ function groupNeighbors(neighbors: Neighbor[]): [string, GraphNode[]][] {
 export function GraphExplorer({ slug, view }: { slug: string; view: GraphView }) {
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [trail, setTrail] = useState<DecisionTrail | null>(null);
-  const [loading, startLoading] = useTransition();
+  const [loaded, setLoaded] = useState<{ id: string; trail: DecisionTrail | null } | null>(null);
+  const requested = useRef<string | null>(null);
+  const panel = useRef<HTMLElement>(null);
 
   const byId = useMemo(() => new Map(view.nodes.map((n) => [n.id, n])), [view.nodes]);
   const kinds = useMemo(() => sourceKinds(view.nodes), [view.nodes]);
   const selected = selectedId ? byId.get(selectedId) : undefined;
+  const result = loaded && loaded.id === selectedId ? loaded : null;
+  const trail = result?.trail ?? null;
 
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -95,11 +98,22 @@ export function GraphExplorer({ slug, view }: { slug: string; view: GraphView })
     };
   }, [selectedId, trail, neighbors]);
 
+  useEffect(() => {
+    if (selectedId && window.matchMedia("(max-width: 1023px)").matches) {
+      panel.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [selectedId]);
+
   function select(id: string | null) {
     setSelectedId(id);
-    setTrail(null);
+    requested.current = id;
     const node = id ? byId.get(id) : undefined;
-    if (node?.type === "Decision") startLoading(async () => setTrail(await decisionTrailAction(slug, node.id)));
+    if (node?.type !== "Decision") return;
+    // A slower answer for an earlier click must not replace the one for the current selection.
+    decisionTrailAction(slug, node.id).then(
+      (found) => requested.current === node.id && setLoaded({ id: node.id, trail: found }),
+      () => requested.current === node.id && setLoaded({ id: node.id, trail: null }),
+    );
   }
 
   return (
@@ -145,7 +159,7 @@ export function GraphExplorer({ slug, view }: { slug: string; view: GraphView })
           <Legend view={view} kinds={kinds} />
         </div>
         {selected && (
-          <aside className="flex flex-col gap-3 lg:w-96">
+          <aside ref={panel} className="flex scroll-mt-28 flex-col gap-3 lg:w-96">
             <div className="flex items-start justify-between gap-2">
               <div className="flex flex-col gap-2">
                 <div className="flex flex-wrap gap-2">
@@ -162,10 +176,12 @@ export function GraphExplorer({ slug, view }: { slug: string; view: GraphView })
               </Button>
             </div>
             {selected.type === "Decision" ? (
-              loading || !trail ? (
+              !result ? (
                 <Skeleton className="h-40 w-full rounded-xl" />
+              ) : trail ? (
+                <DecisionFields trail={trail} />
               ) : (
-                <DecisionFields trail={trail} byId={byId} />
+                <Note>This decision is not available.</Note>
               )
             ) : (
               <NodeFields node={selected} />
@@ -202,23 +218,20 @@ function isState(status: string | null): status is DecisionState {
   return DECISION_STATES.includes(status as DecisionState);
 }
 
-function DecisionFields({ trail, byId }: { trail: DecisionTrail; byId: Map<string, GraphNode> }) {
+function DecisionFields({ trail }: { trail: DecisionTrail }) {
   return (
     <>
       <p className="text-secondary-foreground text-sm font-light">{trail.statement}</p>
       {trail.paths.length > 0 && (
         <Field label="Graph path">
           {trail.paths.map((path) => (
-            <ol key={path.join(">")} className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-              {path.map((id, i) => {
-                const node = byId.get(id);
-                return (
-                  <li key={id} className="flex min-w-0 items-center gap-1.5">
-                    {i > 0 && <ArrowRightIcon className="text-secondary-foreground size-3 shrink-0" />}
-                    <span className="max-w-48 truncate">{node ? (node.type === "Excerpt" ? "Quote" : node.name) : id}</span>
-                  </li>
-                );
-              })}
+            <ol key={path.map((hop) => hop.id).join(">")} className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+              {path.map((hop, i) => (
+                <li key={hop.id} className="flex min-w-0 items-center gap-1.5">
+                  {i > 0 && <ArrowRightIcon className="text-secondary-foreground size-3 shrink-0" />}
+                  <span className="max-w-48 truncate">{hop.name}</span>
+                </li>
+              ))}
             </ol>
           ))}
         </Field>
