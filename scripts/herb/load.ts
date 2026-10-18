@@ -44,6 +44,12 @@ export const herbSlug = (product: string) => `herb-${product.toLowerCase()}`;
 export const readProduct = (product: string): HerbProduct =>
   JSON.parse(readFileSync(join(HERB_DIR, "products", `${product}.json`), "utf8"));
 
+const githubId = (link: string) => new URL(link).pathname.split("/").filter(Boolean).slice(0, 4).join("/");
+
+/** The HERB artifact id for a Source, so results can be checked against HERB's citations. */
+export const herbId = (externalId: string) =>
+  /^[^/]+\/[^/]+\/pull\/\d+$/.test(externalId) ? `github_com_${externalId.replace(/\//g, "_")}` : externalId;
+
 const clean = (id: string) => id.replace(/^'+|'+$/g, "");
 const iso = (value: string) => (value.endsWith("Z") ? value : `${value}Z`);
 
@@ -96,16 +102,17 @@ function productBatch(product: HerbProduct, employees: Map<string, Employee>): B
   for (const u of product.urls) {
     add({ external_id: u.id, labels: ["Doc"], title: u.description, text: `${u.description}\n${u.link}`, url: u.link, created_at: "2026-01-01T00:00:00Z" });
   }
+  // PRs are stored the way the GitHub connector stores them, so links to them in messages become REFERENCES edges.
   for (const pr of product.prs) {
     const status = pr.merged === "True" ? "merged" : pr.state;
-    add(
-      { external_id: pr.id, labels: ["PR"], title: pr.title, text: `${pr.title}\n${pr.summary}\nState: ${status}`, url: pr.link, created_at: iso(pr.created_at) },
-      pr.user.login,
-    );
+    const ghId = githubId(pr.link);
+    sources.push({ connector: "github", external_id: ghId, labels: ["PR"], title: pr.title, text: `${pr.title}\n${pr.summary}\nState: ${status}`, url: pr.link, created_at: iso(pr.created_at), sensitivity: "team" });
+    const ghRef = { kind: "source" as const, connector: "github", external_id: ghId };
+    links.push({ from: ref(pr.user.login), rel: "AUTHORED", to: ghRef });
     pr.reviews.forEach((r, i) => {
       const id = `${pr.id}:review:${i}`;
       add({ external_id: id, labels: ["Message"], title: `Review of ${pr.title}`, text: `${r.state}: ${r.comment}`, created_at: iso(r.submitted_at ?? pr.created_at) }, r.user.login);
-      links.push({ from: src(id), rel: "PART_OF", to: src(pr.id) });
+      links.push({ from: src(id), rel: "PART_OF", to: ghRef });
     });
   }
   return { people: [...people.values()], sources, links };
