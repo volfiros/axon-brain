@@ -15,6 +15,7 @@ export default async function MembersPage({ params }: { params: Promise<{ worksp
   const isAdmin = member.role === "Admin";
   const members = await listMembers(slug);
   const invite = isAdmin ? await currentInvite(slug) : null;
+  const soleAdmin = isAdmin && members.filter((m) => m.role === "Admin").length === 1;
 
   return (
     <>
@@ -33,22 +34,24 @@ export default async function MembersPage({ params }: { params: Promise<{ worksp
           </CardContent>
         </Card>
       )}
-      <Card>
-        <CardHeader>
-          <CardTitle>Leave {workspace.name}</CardTitle>
-          <CardDescription>You lose access until an Admin invites you again. Your saved decisions stay.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ConfirmButton
-            label="Leave workspace"
-            title={`Leave ${workspace.name}?`}
-            description="You lose access to its brain and members right away."
-            confirmLabel="Leave"
-            variant="destructive"
-            onConfirm={leaveWorkspaceAction.bind(null, slug)}
-          />
-        </CardContent>
-      </Card>
+      {!soleAdmin && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Leave {workspace.name}</CardTitle>
+            <CardDescription>You lose access until an Admin invites you again. Your saved decisions stay.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ConfirmButton
+              label="Leave workspace"
+              title={`Leave ${workspace.name}?`}
+              description="You lose access to its brain and members right away."
+              confirmLabel="Leave"
+              variant="destructive"
+              onConfirm={leaveWorkspaceAction.bind(null, slug)}
+            />
+          </CardContent>
+        </Card>
+      )}
     </>
   );
 }
