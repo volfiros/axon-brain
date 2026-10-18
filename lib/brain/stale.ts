@@ -37,7 +37,6 @@ const CHANGES = `
          collect(DISTINCT owner.name) AS owners
   ORDER BY at DESC, source`;
 
-/** Visible accepted decisions whose code changed STALE_AFTER or more times since, most changed first. */
 export async function staleDecisions(ctx: BrainContext, ids?: string[]): Promise<StaleDecision[]> {
   const rows = await readAsCaller<Row>(ctx, CHANGES, { ids: ids ?? null });
   const byDecision = new Map<string, { title: string; made: string; changes: Map<string, CodeChange>; owners: Set<string> }>();

@@ -31,7 +31,6 @@ export async function citationRows(ctx: BrainContext, ids: string[]): Promise<Ma
   return new Map(rows.map((r) => [r.id, r]));
 }
 
-/** Visible excerpt and source text behind each cited decision. */
 export async function citedTexts(ctx: BrainContext, ids: string[]): Promise<Map<string, string[]>> {
   const rows = await readAsCaller<{ id: string; texts: string[] }>(
     ctx,
@@ -46,7 +45,7 @@ export async function citedTexts(ctx: BrainContext, ids: string[]): Promise<Map<
 
 const normalize = (text: string) => text.toLowerCase().replace(/[“”"‘’']/g, "").replace(/\s+/g, " ").trim();
 
-/** Whether `quote` appears word for word, ignoring case, spacing and quote marks, in any of `texts`. */
+// Case, spacing and quote marks differ between what agents quote and what tools store.
 export function quoteFound(quote: string, texts: string[]): boolean {
   const wanted = normalize(quote);
   return wanted.length > 0 && texts.some((t) => normalize(t).includes(wanted));
