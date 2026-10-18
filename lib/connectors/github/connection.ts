@@ -20,7 +20,7 @@ export type GithubConnection = {
 
 const STATE_TTL_SECONDS = 60 * 60;
 
-function stateSignature(payload: string): string {
+export function stateSignature(payload: string): string {
   const secret = process.env.CONNECTOR_STATE_SECRET;
   if (!secret) throw new Error("CONNECTOR_STATE_SECRET is not set");
   return createHmac("sha256", secret).update(payload).digest("base64url");
@@ -134,7 +134,6 @@ export async function syncInstallation(slug: string, installationId: number, sin
   }
 }
 
-/** Marks the repositories' Sources deleted and drops their references. */
 export async function hideRepositories(graph: AxonGraph, fullNames: string[]): Promise<void> {
   await graph.query(
     `UNWIND $prefixes AS prefix
@@ -147,7 +146,6 @@ export async function hideRepositories(graph: AxonGraph, fullNames: string[]): P
   );
 }
 
-/** Hides removed repositories and imports added ones. */
 export async function changeRepositories(slug: string, installationId: number, added: string[], removed: string[]): Promise<void> {
   if (removed.length > 0) await hideRepositories(workspaceGraph(slug), removed);
   const token = await installationToken(installationId);

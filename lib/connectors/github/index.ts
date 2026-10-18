@@ -130,7 +130,6 @@ async function* backfillRepo(ctx: ConnectorContext, token: string, repo: GhRepo)
   yield await codeownersBatch(token, repo, tree, ctx.graph);
 }
 
-/** Backfills the installation's repositories, or only those in `only` (full names). */
 export async function* backfillInstallation(ctx: ConnectorContext, only?: string[]): AsyncIterable<Batch> {
   const token = ctx.token!;
   for (const repo of await ghAll<GhRepo>(token, "/installation/repositories")) {
