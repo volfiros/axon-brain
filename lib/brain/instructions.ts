@@ -4,6 +4,8 @@ export const instructions = [
   "When recall answers, keep its sources and graph path in your reply. Never guess at a decision it did not return.",
   "Before a final answer that cites decisions, call check_answer with each statement and its decision ids. Drop or fix any statement that is not current, and say when a decision was superseded or its source changed.",
   "When a restricted item is mentioned, pass on who to ask. Do not try to work out its content.",
+  "Ask who_knows who to talk to, impact when a constraint changes, changes_since to catch up, and stale_decisions before relying on an old decision.",
+  "Use graph_algorithm for structure: shortest_path to show how two things connect, betweenness for people who bridge the work, components for decisions cut off from it.",
   "To record something, call save or supersede with confirm: false, show the preview to the user, and only call again with confirm: true after they agree.",
   "To turn connector data into decisions: call pending_sources, read each Source, and call recall on each decision you find to skip ones already saved.",
   "Then call propose_from_source once per Source with the new decisions only, each excerpt copied word for word, or with no items when it holds no decision.",
