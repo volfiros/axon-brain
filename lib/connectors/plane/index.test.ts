@@ -45,13 +45,19 @@ test("The connector reads the X-Plane-Signature header and the configured secret
   assert.equal(planeConnector.verifyWebhook(request(hmacHex("other-secret", body)), body), false);
 });
 
-function fakeApi(responses: Record<string, unknown[]>): PlaneApi & { paths: string[] } {
+function fakeApi(responses: Record<string, unknown>): PlaneApi & { paths: string[] } {
   const paths: string[] = [];
   return {
     paths,
-    async *list<T>(path: string) {
+    async get<T>(path: string) {
       paths.push(path);
-      yield* (responses[path] ?? []) as T[];
+      if (!(path in responses)) throw new Error(`Plane GET ${path} failed: 404`);
+      return responses[path] as T;
+    },
+    async *list<T>(path: string) {
+      if (responses[path] instanceof Error) throw responses[path];
+      paths.push(path);
+      yield* ((responses[path] ?? []) as T[]);
     },
   };
 }
@@ -129,5 +135,40 @@ test("Events Axon does not handle, and work items or comments missing ids, yield
   assert.deepEqual(
     await collect(planeEventBatches({ event: "workitem.comment.created", data: { id: "comment-1" } }, ctx, links)),
     [],
+  );
+});
+
+test("Backfill reads each live page's full text, and skips archived pages and pages not updated since the resume point", async () => {
+  const listed = { name: "Runbook", owned_by: "user-1", access: 0, created_at: "2026-10-01T00:00:00Z" };
+  const api = fakeApi({
+    "/projects/": [planeProject()],
+    "/projects/proj-1/pages/": [
+      { ...listed, id: "page-new", updated_at: "2026-10-05T00:00:00Z" },
+      { ...listed, id: "page-old", updated_at: "2026-09-01T00:00:00Z" },
+      { ...listed, id: "page-archived", updated_at: "2026-10-05T00:00:00Z", archived_at: "2026-10-05T00:00:00Z" },
+    ],
+    "/projects/proj-1/pages/page-new/": { id: "page-new", description_html: "<p>Restart the worker.</p>" },
+  });
+
+  const batches = await collect(backfillWith(api, { ...ctx, since: "2026-10-01T00:00:00Z" }, links));
+  const docs = batches.flatMap((b) => b.sources ?? []).filter((s) => s.labels.includes("Doc"));
+
+  assert.deepEqual(
+    docs.map((s) => [s.external_id, s.text]),
+    [["page-new", "Runbook\n\nRestart the worker."]],
+  );
+  assert.ok(!api.paths.includes("/projects/proj-1/pages/page-old/"));
+});
+
+test("A Plane without a Pages API still syncs the project's work items", async () => {
+  const api = fakeApi({
+    "/projects/": [planeProject()],
+    "/projects/proj-1/work-items/": [planeWorkItem()],
+    "/projects/proj-1/pages/": new Error("Plane GET /projects/proj-1/pages/ failed: 404"),
+  });
+  const batches = await collect(backfillWith(api, ctx, links));
+  assert.deepEqual(
+    batches.flatMap((b) => b.sources ?? []).map((s) => s.external_id),
+    ["item-1"],
   );
 });

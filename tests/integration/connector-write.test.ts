@@ -125,6 +125,18 @@ describe("writeBatch", () => {
     assert.deepEqual(await references(graph), [{ from: "github:acme/pay/pull/7", to: "plane:wi-1", methods: ["branch"] }]);
   });
 
+  test("a Slack message that pastes a Plane page link references that page", async () => {
+    const pageId = "0b1c2d3e-4f50-6172-8394-a5b6c7d8e9f0";
+    const pageUrl = `https://plane.acme.test/acme/projects/11111111-2222-3333-4444-555555555555/pages/${pageId}`;
+    await writeBatch(
+      graph,
+      { sources: [{ connector: "plane", external_id: pageId, labels: ["Doc"], title: "ADR-002", text: "Require human approval", url: pageUrl, created_at: "2026-10-01T08:00:00Z", sensitivity: "team" }] },
+      NOW,
+    );
+    await writeBatch(graph, slackMessage(slackTs, `See <${pageUrl}|ADR-002>`), NOW);
+    assert.deepEqual(await references(graph), [{ from: slackId, to: `plane:${pageId}`, methods: ["url"] }]);
+  });
+
   test("a deleted Source drops its outgoing references", async () => {
     await writeBatch(graph, planeBatch(), NOW);
     await writeBatch(graph, slackMessage(slackTs, "Shipping BIL-1 this week"), NOW);

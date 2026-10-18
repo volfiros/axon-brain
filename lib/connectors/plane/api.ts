@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 
 export type PlaneApi = {
+  get<T>(path: string): Promise<T>;
   list<T>(path: string, query?: Record<string, string>): AsyncIterable<T>;
 };
 
@@ -37,6 +38,7 @@ export function httpPlaneApi(opts: { apiUrl: string; apiKey: string; workspaceSl
   }
 
   return {
+    get: <T>(path: string) => get<T>(path, {}),
     async *list<T>(path: string, query: Record<string, string> = {}) {
       let cursor: string | undefined;
       do {
@@ -52,12 +54,16 @@ export function httpPlaneApi(opts: { apiUrl: string; apiKey: string; workspaceSl
   };
 }
 
-/** Serves list calls from a JSON file of `{ "<path>": [items] }`, for loading fixtures without a Plane workspace. */
+/** Serves calls from a JSON file of `{ "<path>": [items] or item }`, for loading fixtures without a Plane workspace. */
 export function fixturePlaneApi(file: string): PlaneApi {
-  const responses = JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown[]>;
+  const responses = JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>;
   return {
+    async get<T>(path: string) {
+      if (!(path in responses)) throw new Error(`Plane GET ${path} failed: 404`);
+      return responses[path] as T;
+    },
     async *list<T>(path: string) {
-      yield* (responses[path] ?? []) as T[];
+      yield* ((responses[path] ?? []) as T[]);
     },
   };
 }

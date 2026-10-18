@@ -537,6 +537,7 @@ An Admin connects Plane and Slack once per Workspace and Axon keeps them in sync
 | Plane project | `Project`, id `plane:<id>`, `key` = project identifier (`BIL`) | project lead `OWNS` it |
 | Plane work item | `(:WorkItem:Source)`, id `plane:<id>`, `key` = `<identifier>-<sequence_id>` (`BIL-1`) | `PART_OF` its Project, creator `AUTHORED`, assignees `OWNS` |
 | Plane comment | `(:Source:Message)`, id `plane:<id>` | `PART_OF` its work item, author `AUTHORED` |
+| Plane page | `(:Source:Doc)`, id `plane:<id>`, read on every sync (Plane sends no page webhooks); skipped when the Plane has no Pages API | `PART_OF` its Project, owner `AUTHORED`; a private page is `restricted` to its owner |
 | Slack message | `(:Source:Message)`, id `slack:<channel>:<ts>` | author `AUTHORED`, a thread reply is `PART_OF` its root message |
 | Plane member, Slack user | `Person` | matched across tools, see below |
 
@@ -595,7 +596,7 @@ ORDER BY w.count DESC
 | `github.com/<o>/<r>/commit/<sha>` or `/pull/<n>/commits/<sha>` | the Commit, when exactly one in that repo starts with the SHA | `url` |
 | A bare 7 to 40 character SHA in a GitHub Source | a Commit in the same repo, same rule | `sha` |
 | `github.com/<o>/<r>/tree/<branch>[/<path>]` | the PR whose `branch` is the longest match, when exactly one PR has it | `url` |
-| Plane `/projects/<id>/issues/<id>`, `/work-items/<id>` or `/browse/<KEY>` | the WorkItem | `url` |
+| Plane `/projects/<id>/issues/<id>`, `/work-items/<id>`, `/pages/<id>` or `/browse/<KEY>` | the WorkItem or page | `url` |
 | A key such as `BIL-1`, any case, at word boundaries | the WorkItem with that `key` | `key`, or `branch` when found in a PR branch name |
 | Slack `/archives/<channel>/p<ts>` | the Message `slack:<channel>:<ts>` | `url` |
 
