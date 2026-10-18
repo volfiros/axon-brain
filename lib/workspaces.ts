@@ -153,9 +153,15 @@ export async function findInvite(code: string): Promise<Workspace | null> {
     `MATCH (i:Invite {code: $code})-[:FOR]->(w:Workspace)
      WHERE i.expires_at > localdatetime()
      RETURN w.id AS id, w.slug AS slug, w.name AS name`,
-    { code: code.trim() },
+    { code: inviteCode(code) },
   );
   return workspace ?? null;
+}
+
+// The Members page shows the full /join/<code> link, so a pasted link is accepted as well as a bare code.
+function inviteCode(input: string): string {
+  const trimmed = input.trim();
+  return /\/join\/([^/?#\s]+)/.exec(trimmed)?.[1] ?? trimmed;
 }
 
 export async function joinWithCode(account: AccountRef, code: string): Promise<Workspace> {
