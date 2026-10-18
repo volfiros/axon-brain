@@ -4,6 +4,8 @@ import checkAnswer from "./check-answer";
 import answerStatus from "./answer-status";
 import graphAlgorithm from "./graph-algorithm";
 import impact from "./impact";
+import knowledgeRisk from "./knowledge-risk";
+import listQuestions from "./list-questions";
 import pendingSources from "./pending-sources";
 import proposeFromSource from "./propose-from-source";
 import recall from "./recall";
@@ -27,6 +29,8 @@ export const tools: BrainTool[] = [
   impact,
   staleDecisions,
   graphAlgorithm,
+  knowledgeRisk,
+  listQuestions,
   pendingSources,
   proposeFromSource,
   reviewProposals,
