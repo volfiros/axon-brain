@@ -50,13 +50,32 @@ Question: ${question}`,
   return listFrom(reply).slice(0, 3);
 }
 
+const ROUNDS = Number(process.env.HERB_ROUNDS ?? 1);
+
 async function evidence(product: string, question: string): Promise<string> {
   const ctx = benchContext(product);
   const queries = [question, ...(await queriesFor(product, question))];
-  const lists = await Promise.all(queries.map(async (q) => (await searchSources(ctx, q, { limit: 25, direct: 15 })) ?? []));
   const merged = new Map<string, FoundSource>();
-  for (let i = 0; merged.size < 50 && lists.some((l) => i < l.length); i++) {
-    for (const list of lists) if (list[i] && !merged.has(list[i].id) && merged.size < 50) merged.set(list[i].id, list[i]);
+  const search = async (qs: string[], cap: number) => {
+    const lists = await Promise.all(qs.map(async (q) => (await searchSources(ctx, q, { limit: 25, direct: 15 })) ?? []));
+    for (let i = 0; merged.size < cap && lists.some((l) => i < l.length); i++) {
+      for (const list of lists) if (list[i] && !merged.has(list[i].id) && merged.size < cap) merged.set(list[i].id, list[i]);
+    }
+  };
+  await search(queries, 40);
+  if (ROUNDS > 1) {
+    const seen = [...merged.values()].map((s, i) => formatSource(s, queries.join(" "), i + 1)).join("\n");
+    // A second round lets the agent follow what it found, such as task names from a planning meeting to the PRs that built them.
+    const follow = listFrom(
+      await llm(
+        `You are searching the ${product} team's Slack, docs, meetings and pull requests to answer: ${question}
+Here is what the first search found. Write up to 3 new short keyword queries (3 to 6 words) for evidence still missing, for example the exact task or PR titles this evidence names. Reply with a JSON array of strings only.
+
+${seen.slice(0, 24000)}`,
+      ),
+    ).slice(0, 3);
+    queries.push(...follow);
+    await search(follow, 60);
   }
   const text = [...merged.values()].map((s, i) => formatSource(s, queries.join(" "), i + 1)).join("\n");
   // Customers appear by id in messages; the graph's ExternalParty nodes name their company.

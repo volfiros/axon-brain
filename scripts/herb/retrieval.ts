@@ -5,7 +5,7 @@ import { searchSources } from "@/lib/brain/sources";
 import type { BrainContext } from "@/lib/brain/tool";
 import { closeConnection, workspaceGraph } from "@/lib/graph/client";
 
-import { assertLocal, HERB_DIR, herbProducts, herbSlug, readProduct } from "./load";
+import { assertLocal, HERB_DIR, herbId, herbProducts, herbSlug, readProduct } from "./load";
 
 const KS = [10, 20, 50];
 const OPTIONS = JSON.parse(process.env.HERB_SEARCH ?? "{}");
@@ -34,7 +34,7 @@ async function main() {
       const cited = new Set(q.citations);
       const row: Row = { product, type: q.type, hit: {}, recall: {} };
       for (const k of KS) {
-        const got = found.slice(0, k).filter((s) => cited.has(s.externalId)).length;
+        const got = found.slice(0, k).filter((s) => cited.has(herbId(s.externalId))).length;
         row.hit[k] = got > 0 ? 1 : 0;
         row.recall[k] = got / Math.min(cited.size, k);
       }

@@ -26,7 +26,8 @@ hit@k: at least one cited artifact in the first k results. recall@k: cited artif
 | + re-rank 200 candidates by covered query words | 50.1 | 10.7 | 64.7 | 10.9 | 11.7 |
 | + rarer words weigh more, 3,000 candidates | 86.0 | 27.2 | 96.2 | 23.3 | 22.4 |
 | + the conversation around the top 10 hits | 86.0 | 27.2 | 96.2 | 23.3 | 30.5 |
-| + question verbs (find, list, provide, show, give, tell) as stopwords: `search_sources` | 88.3 | 29.3 | 96.7 | 24.3 | 32.2 |
+| + question verbs (find, list, provide, show, give, tell) as stopwords | 88.3 | 29.3 | 96.7 | 24.3 | 32.2 |
+| + Sources a top hit references or is referenced by: `search_sources` | 88.3 | 29.3 | 96.7 | 24.3 | 32.4 |
 
 By question type, final search:
 
@@ -60,7 +61,16 @@ Each question goes to DeepSeek V3 (`deepseek/deepseek-chat` through OpenRouter) 
 
 The paper's best agentic RAG averages 32.96 on the same four types. The numbers compare only roughly: a different answering model, a single search round instead of a multi-step agent, and a DeepSeek judge instead of GPT-4o, which may score content more generously.
 
-Artifact search is the weak spot. PR questions name a feature ("approved PRs for integrating predictive analytics"), while the PRs are titled by task ("Integrate TensorFlow LSTM for Time-Series Forecasting"); only the planning meeting transcripts tie the two together. Showing each PR's reviews in `search_sources` (state and reviewer) moved PR questions only from 9.1 to 10.0. Linking PRs to the features discussed in meetings would need a semantic step that Axon does not make on the server.
+Artifact search is the weak spot. PR questions name a feature ("approved PRs for integrating predictive analytics"), while the PRs are titled by task ("Integrate TensorFlow LSTM for Time-Series Forecasting"); only the planning meeting transcripts tie the two together. What we tried for PR questions, measured on the full 167 or a fixed 20-question sample:
+
+| Change | PR score |
+| --- | --- |
+| First full run | 9.1 (167) |
+| Show each PR's reviews (state and reviewer) in `search_sources` | 10.0 (167) |
+| Load PRs under GitHub ids so Slack links become `REFERENCES`, and follow them from top hits | 8.6 (20, was 7.4) |
+| A second search round driven by what the first one found | 8.6 (20) |
+
+"Approved" in HERB comes from the Slack review threads, not the PR review states, and the planning meetings name features in words no PR or message shares. Linking a feature to its PRs would need a semantic step that Axon does not make on the server.
 
 ## Limits
 

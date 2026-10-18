@@ -37,7 +37,7 @@ type Hit = { id: string; channel: string | null; at: string };
 
 const shift = (at: string, hours: number) => new Date(Date.parse(`${at}Z`) + hours * 3_600_000).toISOString().slice(0, 19);
 
-/** Full-text search over Sources the caller can see. Each top message hit brings the messages around it in its channel. */
+/** Full-text search over Sources the caller can see. Top hits bring the Sources they reference or are referenced by, then the messages around them in their channel. */
 export async function searchSources(ctx: BrainContext, query: string, options: SearchOptions = {}): Promise<FoundSource[] | null> {
   const { limit = 10, expand = 5, around = 4, windowHours = 6, pool = 2000 } = options;
   const direct = options.direct ?? limit;
@@ -78,12 +78,25 @@ export async function searchSources(ctx: BrainContext, query: string, options: S
       )
     : [];
 
+  const referenced = hits.length
+    ? await readAsCaller<{ hit: string; id: string }>(
+        ctx,
+        `${FROM_CALLER}
+         UNWIND $ids AS hid
+         MATCH (h:Source {id: hid})-[:REFERENCES]-(s:Source)
+         WHERE s.deleted_at IS NULL AND ${visible("s")}
+         RETURN hid AS hit, s.id AS id`,
+        { ids: hits.slice(0, expand).map((h) => h.id) },
+      )
+    : [];
+
   const order: { id: string; near: string | null }[] = [];
   const seen = new Set<string>();
   const push = (id: string, near: string | null) => {
     if (!seen.has(id)) order.push({ id, near }), seen.add(id);
   };
   for (const hit of hits) push(hit.id, null);
+  for (const hit of hits) for (const r of referenced.filter((r) => r.hit === hit.id)) push(r.id, hit.id);
   for (const hit of hits) {
     const gap = (at: string) => Math.abs(Date.parse(`${at}Z`) - Date.parse(`${hit.at}Z`));
     neighbours
