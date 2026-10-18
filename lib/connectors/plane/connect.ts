@@ -78,7 +78,7 @@ export async function assertPublicHost(hostname: string): Promise<void> {
   if (addresses.length === 0 || addresses.some(isBlockedAddress)) throw new Error(URL_ERROR);
 }
 
-async function normalizeApiUrl(raw: string | undefined): Promise<string> {
+export async function normalizeApiUrl(raw: string | undefined): Promise<string> {
   if (!raw?.trim()) return PLANE_CLOUD_API;
   let url: URL;
   try {

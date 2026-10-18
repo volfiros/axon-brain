@@ -68,7 +68,7 @@ export default defineTool({
   },
 });
 
-function utc(value: string): string {
+export function utc(value: string): string {
   const zoned = !value.includes("T") || /(Z|[+-]\d\d:?\d\d)$/i.test(value);
   const date = new Date(zoned ? value : `${value}Z`);
   if (Number.isNaN(date.getTime())) throw new Error(`Not a date: ${value}. Use a form like 2026-10-01.`);
