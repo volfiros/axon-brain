@@ -78,7 +78,7 @@ export async function rankPeople(ctx: BrainContext, topic: string): Promise<Rank
   const { stems } = searchTerms(topic);
   if (stems.length === 0) return null;
   const signals = await readAsCaller<Signal>(ctx, SCORING, { stems });
-  const centrality = signals.length > 0 ? await personCentrality(ctx).catch(() => null) : null;
+  const centrality = signals.length > 0 ? await personCentrality(ctx).catch(logCentralityError) : null;
 
   const people = new Map<string, RankedPerson>();
   const seen = new Set<string>();
@@ -107,6 +107,11 @@ export async function rankPeople(ctx: BrainContext, topic: string): Promise<Rank
     person.reasons.push(`central among the people, decisions and sources you can see (+${points})`);
   }
   return [...people.values()].sort((a, b) => b.score - a.score).slice(0, 5);
+}
+
+function logCentralityError(err: unknown): null {
+  console.error("PageRank projection failed, ranking without it:", err);
+  return null;
 }
 
 export type PersonItem = { id: string; kind: string; name: string; url: string | null };

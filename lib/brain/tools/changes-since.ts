@@ -15,14 +15,14 @@ const CHANGES = `
   ${FROM_CALLER}
   MATCH (d:Decision {status: 'superseded'}) WHERE ${inWindow("d.valid_to")} AND ${visible("d")}
   OPTIONAL MATCH (n:Decision)-[:SUPERSEDES]->(d) WHERE n.status IN ['accepted', 'superseded'] AND ${visible("n")}
-  WITH d, collect(DISTINCT n.id) AS by
+  WITH d, collect(DISTINCT n.id) AS replacedBy
   RETURN 'decision superseded' AS kind, d.id AS id, d.title AS title, d.valid_to AS at,
-         CASE WHEN size(by) = 0 THEN null ELSE 'replaced by ' + by[0] END AS note
+         CASE WHEN size(replacedBy) = 0 THEN null ELSE 'replaced by ' + replacedBy[0] END AS note
   UNION ALL
   ${FROM_CALLER}
   MATCH (d:Decision) WHERE d.confirmed_at IS NOT NULL AND ${inWindow("d.confirmed_at")} AND ${visible("d")}
-  OPTIONAL MATCH (by:Person {id: d.confirmed_by})
-  RETURN DISTINCT 'proposal accepted' AS kind, d.id AS id, d.title AS title, d.confirmed_at AS at, 'by ' + by.name AS note
+  OPTIONAL MATCH (confirmer:Person {id: d.confirmed_by})
+  RETURN DISTINCT 'proposal accepted' AS kind, d.id AS id, d.title AS title, d.confirmed_at AS at, 'by ' + confirmer.name AS note
   UNION ALL
   ${FROM_CALLER}
   MATCH (d:Decision {status: 'accepted'})-[link:DERIVED_FROM]->(:Excerpt)-[:IN]->(s:Source)
