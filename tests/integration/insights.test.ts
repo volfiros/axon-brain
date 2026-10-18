@@ -94,7 +94,7 @@ describe("graph_algorithm", () => {
     await writeBatch(admin.graph, pr(7, "2026-10-02T00:00:00Z"));
     await writeBatch(admin.graph, slackMessage(ts, "Shipped in https://github.com/acme/pay/pull/7"));
     const reply = await callTool(graphAlgorithm, { algorithm: "shortest_path", from: "Message in #payments", to: "github:acme/pay/pull/7" }, admin);
-    assert.equal(reply, "1 steps:\n(Message: Message in #payments)-[REFERENCES]-(PR: PR 7)");
+    assert.equal(reply, "1 step:\n(Message: Message in #payments)-[REFERENCES]-(PR: PR 7)");
   });
 
   test("a Guest gets no path through Sources they cannot see", async () => {

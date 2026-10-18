@@ -74,7 +74,7 @@ async function shortestPath(scratch: AxonGraph, nodes: Nodes, from?: string, to?
   if (!row) return `No path within ${MAX_PATH} steps between ${label(a)} and ${label(b)}.`;
   const steps = row.names.map((name, i) => label({ kind: row.kinds[i], name }));
   const path = steps.map((step, i) => (i === 0 ? step : `-[${row.types[i - 1]}]-${step}`)).join("");
-  return `${row.types.length} steps:\n${path}`;
+  return `${row.types.length} step${row.types.length === 1 ? "" : "s"}:\n${path}`;
 }
 
 export default defineTool({
