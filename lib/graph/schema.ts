@@ -18,6 +18,7 @@ const CORE_LABELS = [
   "Excerpt",
   "ExternalParty",
   "Feedback",
+  "Answer",
 ];
 
 const RANGE_INDEXES: [label: string, property: string][] = [

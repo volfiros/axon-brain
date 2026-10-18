@@ -3,7 +3,7 @@ import type { ComponentProps } from "react";
 
 import { Badge } from "@/components/ui/badge";
 
-export const DECISION_STATES = ["proposed", "accepted", "superseded", "restricted", "changed"] as const;
+export const DECISION_STATES = ["proposed", "accepted", "superseded", "restricted", "changed", "current", "stale"] as const;
 
 export type DecisionState = (typeof DECISION_STATES)[number];
 
@@ -13,9 +13,11 @@ const STATE_BADGES: Record<DecisionState, { label: string; variant: ComponentPro
   superseded: { label: "Superseded", variant: "muted" },
   restricted: { label: "Restricted", variant: "warning" },
   changed: { label: "Source changed", variant: "warning" },
+  current: { label: "Current", variant: "valid" },
+  stale: { label: "Stale", variant: "warning" },
 };
 
-/** `restricted` and `changed` are not statuses: render them next to the status badge when they apply. */
+/** `current` and `stale` are saved answer statuses. `restricted` and `changed` are not statuses: render them next to the status badge when they apply. */
 export function DecisionStatusBadge({ status }: { status: DecisionState }) {
   const { label, variant } = STATE_BADGES[status];
   return (

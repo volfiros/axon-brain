@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { Params } from "@/lib/graph/client";
 import { FROM_CALLER, readAsCaller, visible } from "./access";
+import { markStaleOnSupersede } from "./answers";
 import { searchTerms } from "./search";
 import type { BrainContext } from "./tool";
 
@@ -301,4 +302,5 @@ export async function supersedeDecision(ctx: BrainContext, newId: string, oldId:
      SET old.status = 'superseded', old.valid_to = localdatetime()`,
     { newId, oldId },
   );
+  await markStaleOnSupersede(ctx.graph, oldId);
 }

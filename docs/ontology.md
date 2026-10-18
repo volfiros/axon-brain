@@ -253,6 +253,8 @@ The brain MCP server lives at `/w/<workspace>/mcp` (ADR 0003). The workspace com
 | `review_source_changes(action, ids)` | List accepted decisions whose Source was edited or deleted since it was recorded, and possible conflicts ranked by source, or confirm that they still hold |
 | `changes_since(since, until)` | Decisions created, superseded or flagged, proposals accepted, and Sources edited or deleted in a time window, paged |
 | `check_answer(statements)` | For each statement of an answer, whether the decisions it cites are current, superseded, flagged, not accepted, or not found or not visible |
+| `save_answer(question, statements, confirm)` | Preview, then save an answer whose statements each cite accepted decisions (see Saved answers) |
+| `answer_status(stale_only)` | Saved answers the caller can see, stale first, with why and the replacing decision |
 
 - A Decision saved through the agent is `accepted` with `confirmed_by` set to the caller, because the person who made it confirmed the preview. Decisions extracted from connector Sources are `proposed` until a person accepts them.
 - Decision status is one of `proposed`, `accepted`, `superseded` or `dismissed`. Dismissed decisions are kept (with `dismissed_by` and `dismissed_at`) but recall, who_knows and impact skip them.
@@ -485,6 +487,45 @@ MATCH (u:Person {id: $personId})-[:HAS_ROLE]->(role:Role)
 MATCH (a:Decision {status: 'accepted'})-[:ABOUT|AFFECTS]->(x)<-[:ABOUT|AFFECTS]-(b:Decision {status: 'accepted'})
 WHERE a.id < b.id AND <visible(a)> AND <visible(b)> AND <shown(x)>
 RETURN a.id, b.id, collect(DISTINCT coalesce(x.path, x.name)) AS targets
+```
+
+### Saved answers
+
+An answer the person wants to keep is saved with `save_answer` and goes stale on its own when what it cites changes.
+
+```
+(:Answer {id, question, statements: [text, ...], cite_key, status: 'current' | 'stale', sensitivity, saved_by, saved_at,
+          stale_reason, stale_at, stale_decision_id})
+(Answer)-[:CITES {statement}]->(Decision)
+(Person)-[:SAVED]->(Answer)
+(Answer)-[:VISIBLE_TO]->(Team | Role | Person)
+```
+
+- `statements` holds the text of each statement, and `CITES.statement` is the index of the statement that cites the decision.
+- Every cited decision must be `current` by the same check as `check_answer` (`lib/brain/citations.ts`): visible, `accepted`, no visible accepted or superseded decision `SUPERSEDES` it, and no visible Source changed since it was recorded. Otherwise nothing is written and the reply gives each decision's verdict and replacement.
+- The Answer copies the `VISIBLE_TO` edges of its narrowest cited decision (restricted, then team, then public). Reads also require every cited decision to be visible, which covers two restricted decisions naming different people.
+- Saving the same question, statements and citations again while the caller's earlier Answer is current writes nothing. `cite_key` is the sorted `statement:decision_id` pairs.
+- The Answer, its `VISIBLE_TO` edges and its `CITES` edges are written in one query, so an Answer never exists without its audience.
+- An Answer goes stale when a cited decision is superseded (`supersedeDecision`, used by `supersede` and save_session "change") or when the connector writer updates a Source behind a cited decision so that `sourceChanged` holds. `stale_reason` names only the cited decision. The replacing decision is looked up at read time and shown only when the reader can see it. A stale Answer stays stale.
+- The workspace home has a Saved answers tab, stale first, linking cited and replacing decisions to `/w/<slug>?decision=<id>`.
+
+```cypher
+MATCH (a:Answer {status: 'current'})-[:CITES]->(d:Decision {id: $oldId})
+WITH DISTINCT a, d
+SET a.status = 'stale', a.stale_at = localdatetime(), a.stale_decision_id = d.id,
+    a.stale_reason = '"' + d.title + '" was superseded'
+```
+
+```cypher
+MATCH (u:Person {id: $personId})-[:HAS_ROLE]->(role:Role)
+MATCH (a:Answer) WHERE <visible(a)>
+OPTIONAL MATCH (a)-[:CITES]->(h:Decision) WHERE NOT <visible(h)>
+WITH u, role, a, count(h) AS hidden
+WHERE hidden = 0
+OPTIONAL MATCH (n:Decision)-[:SUPERSEDES]->(old:Decision)
+WHERE old.id = a.stale_decision_id AND n.status IN ['accepted', 'superseded'] AND <visible(n)>
+RETURN a.question, a.status, a.stale_reason, n.title AS replaced_by
+ORDER BY CASE a.status WHEN 'stale' THEN 0 ELSE 1 END
 ```
 
 ## Plane and Slack

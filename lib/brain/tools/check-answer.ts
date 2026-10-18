@@ -1,12 +1,6 @@
 import { z } from "zod";
-import { FROM_CALLER, readAsCaller, visible } from "../access";
-import { sourceChanged } from "../source-changes";
+import { check, citationRows, SEVERITY } from "../citations";
 import { defineTool } from "../tool";
-
-const SEVERITY = ["not_found_or_not_visible", "superseded", "flagged", "not_accepted", "current"] as const;
-type Verdict = (typeof SEVERITY)[number];
-
-type Row = { id: string; title: string; status: string; replacedBy: { id: string; title: string }[]; changedSources: number };
 
 export default defineTool({
   name: "check_answer",
@@ -27,18 +21,7 @@ export default defineTool({
   readOnly: true,
   async handler({ statements }, ctx) {
     const ids = [...new Set(statements.flatMap((s) => s.decision_ids))];
-    const rows = await readAsCaller<Row>(
-      ctx,
-      `${FROM_CALLER}
-       MATCH (d:Decision) WHERE d.id IN $ids AND ${visible("d")}
-       OPTIONAL MATCH (n:Decision)-[:SUPERSEDES]->(d) WHERE n.status IN ['accepted', 'superseded'] AND ${visible("n")}
-       OPTIONAL MATCH (d)-[link:DERIVED_FROM]->(:Excerpt)-[:IN]->(s:Source) WHERE ${visible("s")} AND ${sourceChanged("link", "s")}
-       RETURN d.id AS id, d.title AS title, d.status AS status,
-              [x IN collect(DISTINCT {id: n.id, title: n.title}) WHERE x.id IS NOT NULL] AS replacedBy,
-              count(DISTINCT s) AS changedSources`,
-      { ids },
-    );
-    const byId = new Map(rows.map((r) => [r.id, r]));
+    const byId = await citationRows(ctx, ids);
 
     const results = statements.map((statement, i) => {
       if (statement.decision_ids.length === 0) {
@@ -58,16 +41,3 @@ export default defineTool({
   },
 });
 
-function check(id: string, row: Row | undefined): { verdict: Verdict; line: string } {
-  if (!row) return { verdict: "not_found_or_not_visible", line: `${id}: not_found_or_not_visible` };
-  const name = `${id} "${row.title}"`;
-  if (row.status === "superseded" || row.replacedBy.length > 0) {
-    const by = row.replacedBy.map((r) => `${r.id} "${r.title}"`).join(", ");
-    return { verdict: "superseded", line: `${name}: superseded, replaced_by ${by || "none you can see"}` };
-  }
-  if (row.status !== "accepted") return { verdict: "not_accepted", line: `${name}: not_accepted, its status is ${row.status}` };
-  if (row.changedSources > 0) {
-    return { verdict: "flagged", line: `${name}: flagged, its source changed since it was recorded (see review_source_changes)` };
-  }
-  return { verdict: "current", line: `${name}: current` };
-}

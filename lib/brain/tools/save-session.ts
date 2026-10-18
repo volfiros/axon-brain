@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
+import { markStaleOnSupersede } from "../answers";
 import { requireWriter } from "../caller";
 import { resolveDecisionMatch, type Match, type Resolution } from "../session/dedupe";
 import { redactItem, type Finding } from "../session/redact";
@@ -247,7 +248,8 @@ async function ensureSuperseded(ctx: BrainContext, decisionId: string, oldId: st
     "MATCH (:Decision {id: $decisionId})-[r:SUPERSEDES]->(:Decision {id: $oldId}) RETURN count(r) AS done",
     { decisionId, oldId },
   );
-  if (!row?.done) await supersedeDecision(ctx, decisionId, oldId);
+  if (row?.done) await markStaleOnSupersede(ctx.graph, oldId);
+  else await supersedeDecision(ctx, decisionId, oldId);
 }
 
 async function writeQuestion(ctx: BrainContext, item: SessionItem, sourceId: string, sensitivity: Sensitivity): Promise<string> {

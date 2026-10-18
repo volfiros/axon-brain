@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 
+import { markStaleOnSourceChange } from "@/lib/brain/answers";
 import type { AxonGraph, Params } from "@/lib/graph/client";
 
 import { writeReferences } from "./links";
@@ -55,6 +56,7 @@ export async function writeBatch(graph: AxonGraph, batch: Batch, now = new Date(
   await writeProjects(graph, batch.projects ?? [], syncedAt);
   await writeCodeUnits(graph, [...(batch.codeUnits ?? []), ...codeUnitsInLinks(batch.links ?? [])]);
   await writeSources(graph, batch.sources ?? [], people, syncedAt);
+  await markStaleOnSourceChange(graph, (batch.sources ?? []).map((s) => sourceId(s.connector, s.external_id)));
   await writeLinks(graph, batch.links ?? [], people);
   await writeReferences(graph, batch);
   await refreshWorkedOn(graph, [...new Set(people.values())]);

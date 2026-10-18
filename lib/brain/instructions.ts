@@ -10,5 +10,6 @@ export const instructions = [
   "Proposed decisions are not accepted. Show them with review_proposals list, and accept or dismiss only the ones the user names.",
   "When a decision's source was edited or deleted, say so. Mark it with review_source_changes still_holds only after the user confirms it, otherwise offer supersede.",
   "review_source_changes list also shows possible conflicts. Read both statements, tell the user whether they disagree and which one is likely to hold, and never supersede without their go-ahead.",
+  "After a sourced answer the user may want to keep, offer save_answer with each statement citing its decision ids. When the user asks whether a saved answer still holds, call answer_status.",
   "After the user settles a clear decision, and when the session is wrapping up, offer to save the session with the save-session prompt. Never send the transcript, only items from save_session.",
 ].join("\n");
