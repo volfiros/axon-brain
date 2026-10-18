@@ -86,7 +86,11 @@ export default defineTool({
     }
 
     const ids = ranked.map((r) => r.id);
-    const [details, graphPaths] = await Promise.all([decisionDetails(ctx, ids), decisionPaths(ctx, ids)]);
+    const [details, graphPaths, related] = await Promise.all([
+      decisionDetails(ctx, ids),
+      decisionPaths(ctx, ids),
+      relatedSources(ctx, ids),
+    ]);
     const blocks: string[] = [];
     if (ranked.length > 0) {
       const top = details.get(ranked[0].id)!;
@@ -94,7 +98,7 @@ export default defineTool({
     }
     for (const entry of ranked) {
       const detail = details.get(entry.id);
-      if (detail) blocks.push(await renderDecision(ctx, detail, entry.paths, graphPaths.get(entry.id)));
+      if (detail) blocks.push(await renderDecision(ctx, detail, entry.paths, graphPaths.get(entry.id)) + relatedLine(related.get(entry.id)));
     }
     if (notes.length > 0) {
       blocks.push(["Context notes:", ...notes.map((n) => `- "${n.quote}" (${n.title}${n.url ? `, ${n.url}` : ""})`)].join("\n"));
@@ -190,6 +194,31 @@ async function decisionPaths(ctx: BrainContext, ids: string[]): Promise<Map<stri
     { ids },
   );
   return new Map(rows.map((r) => [r.id, r]));
+}
+
+type Related = { title: string; url: string | null };
+
+const RELATED_LIMIT = 5;
+
+/** Sources a decision's own Sources reference, or are referenced by. Both ends must be visible to the caller. */
+async function relatedSources(ctx: BrainContext, ids: string[]): Promise<Map<string, Related[]>> {
+  const rows = await readAsCaller<{ id: string; related: Related[] }>(
+    ctx,
+    `${FROM_CALLER}
+     MATCH (d:Decision) WHERE d.id IN $ids AND ${visible("d")}
+     MATCH (d)-[:DERIVED_FROM]->(:Excerpt)-[:IN]->(s:Source)-[:REFERENCES]-(t:Source)
+     WHERE ${visible("s")} AND ${visible("t")} AND t.deleted_at IS NULL
+       AND NOT (d)-[:DERIVED_FROM]->(:Excerpt)-[:IN]->(t)
+     WITH d, t ORDER BY t.title
+     RETURN d.id AS id, collect(DISTINCT {title: t.title, url: t.url})[0..${RELATED_LIMIT}] AS related`,
+    { ids },
+  );
+  return new Map(rows.map((r) => [r.id, r.related]));
+}
+
+function relatedLine(related: Related[] | undefined): string {
+  if (!related?.length) return "";
+  return `\nRelated: ${related.map((r) => `${r.title}${r.url ? ` (${r.url})` : ""}`).join("; ")}`;
 }
 
 function hops(nodes: string[] | null, rels: string[] | null): string {

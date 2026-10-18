@@ -76,19 +76,20 @@ export async function* backfillWith(api: PlaneApi, ctx: ConnectorContext, links 
 
 // A project Axon has not synced yet stays Admin-only until the next poll reads its members.
 async function projectScope(graph: AxonGraph, id: string): Promise<ProjectScope> {
-  const [row] = await graph.roQuery<{ sensitivity: string; ids: string[][] }>(
+  const [row] = await graph.roQuery<{ sensitivity: string; key: string | null; ids: string[][] }>(
     `MATCH (p:Project {id: $id})
      OPTIONAL MATCH (s:Source)-[:PART_OF]->(p)
      OPTIONAL MATCH (s)-[:VISIBLE_TO]->(x:Person)
-     RETURN p.sensitivity AS sensitivity, collect(DISTINCT x.external_ids) AS ids`,
+     RETURN p.sensitivity AS sensitivity, p.key AS key, collect(DISTINCT x.external_ids) AS ids`,
     { id: projectId("plane", id) },
   );
-  if (row?.sensitivity === "team") return { id, sensitivity: "team" };
+  const key = row?.key ?? undefined;
+  if (row?.sensitivity === "team") return { id, sensitivity: "team", key };
   const members = (row?.ids ?? [])
     .flat()
     .filter((key) => key.startsWith("plane:"))
     .map((key) => planeRef(key.slice("plane:".length)));
-  return { id, sensitivity: "restricted", visible_to: members };
+  return { id, sensitivity: "restricted", visible_to: members, key };
 }
 
 async function workItemName(graph: AxonGraph, itemId: string): Promise<string> {

@@ -481,8 +481,8 @@ An Admin connects Plane and Slack once per Workspace and Axon keeps them in sync
 
 | From | Node | Edges |
 | --- | --- | --- |
-| Plane project | `Project`, id `plane:<id>` | project lead `OWNS` it |
-| Plane work item | `(:WorkItem:Source)`, id `plane:<id>` | `PART_OF` its Project, creator `AUTHORED`, assignees `OWNS` |
+| Plane project | `Project`, id `plane:<id>`, `key` = project identifier (`BIL`) | project lead `OWNS` it |
+| Plane work item | `(:WorkItem:Source)`, id `plane:<id>`, `key` = `<identifier>-<sequence_id>` (`BIL-1`) | `PART_OF` its Project, creator `AUTHORED`, assignees `OWNS` |
 | Plane comment | `(:Source:Message)`, id `plane:<id>` | `PART_OF` its work item, author `AUTHORED` |
 | Slack message | `(:Source:Message)`, id `slack:<channel>:<ts>` | author `AUTHORED`, a thread reply is `PART_OF` its root message |
 | Plane member, Slack user | `Person` | matched across tools, see below |
@@ -511,7 +511,7 @@ An Admin installs the Axon GitHub App on the Workspace's repositories from `/w/<
 
 | From | Node | Edges |
 | --- | --- | --- |
-| Pull request | `(:Source:PR)`, id `github:<owner>/<repo>/pull/<number>` | author `AUTHORED`, `TOUCHES` each changed file |
+| Pull request | `(:Source:PR)`, id `github:<owner>/<repo>/pull/<number>`, `branch` = head branch | author `AUTHORED`, `TOUCHES` each changed file |
 | Review, PR comment, review comment | `(:Source:Message)`, id `github:<owner>/<repo>/review/<id>`, `/comment/<id>` or `/review-comment/<id>` | `PART_OF` its PR, author `AUTHORED`, a review comment `TOUCHES` its file |
 | Default-branch commit | `(:Source:Commit)`, id `github:<owner>/<repo>/commit/<sha>`, `extraction = 'skipped'` | author `AUTHORED`, `TOUCHES` each changed file |
 | README.md, `docs/**/*.md` except `docs/archive/`, ADRs | `(:Source:Doc)`, id `github:<owner>/<repo>/doc/<path>` | |
@@ -528,6 +528,31 @@ An Admin installs the Axon GitHub App on the Workspace's repositories from `/w/<
 MATCH (p:Person)-[w:WORKED_ON]->(c:CodeUnit {path: $path})
 RETURN p.name, w.count, w.last_at
 ORDER BY w.count DESC
+```
+
+### References between Sources
+
+`(Source)-[:REFERENCES {methods}]->(Source)` links GitHub, Plane and Slack Sources only through explicit references. Names and similar wording never create one. The shared writer (`lib/connectors/links.ts`) runs it for every Batch, so sync, backfill and webhooks all keep it current.
+
+| Reference in title, text or PR branch | Resolves to | Method |
+| --- | --- | --- |
+| `github.com/<o>/<r>/pull/<n>` or `/issues/<n>` (any tab or fragment) | the PR `github:<o>/<r>/pull/<n>` | `url` |
+| `github.com/<o>/<r>/commit/<sha>` or `/pull/<n>/commits/<sha>` | the Commit, when exactly one in that repo starts with the SHA | `url` |
+| A bare 7 to 40 character SHA in a GitHub Source | a Commit in the same repo, same rule | `sha` |
+| `github.com/<o>/<r>/tree/<branch>[/<path>]` | the PR whose `branch` is the longest match | `url` |
+| Plane `/projects/<id>/issues/<id>`, `/work-items/<id>` or `/browse/<KEY>` | the WorkItem | `url` |
+| A key such as `BIL-1`, any case, at word boundaries | the WorkItem with that `key` | `key`, or `branch` when found in a PR branch name |
+| Slack `/archives/<channel>/p<ts>` | the Message `slack:<channel>:<ts>` | `url` |
+
+- Fenced and inline code is skipped, so example keys and URLs in code never link.
+- Only Sources already in the Workspace graph resolve. Anything else is skipped, and self-references are dropped.
+- There is one edge per pair with every method that found it. Each write recomputes a Source's outgoing edges from its current text and deletes the ones whose reference is gone.
+- When a Source is written, Sources that already mention its key, PR path, short SHA or permalink are re-scanned too, so it does not matter which connector syncs first.
+- `REFERENCES` grants no access. Recall lists the Sources that a decision's Sources reference, or are referenced by, as `Related:`, and only when both ends are visible to the caller.
+
+```cypher
+MATCH (m:Message:Source {connector: 'slack'})-[r:REFERENCES]->(w:WorkItem:Source)
+RETURN m.title, r.methods, w.key, w.title
 ```
 
 ## Session capture

@@ -12,6 +12,7 @@ export type PlaneMember = {
 export type PlaneProject = {
   id: string;
   name: string;
+  identifier?: string;
   network?: number;
   project_lead?: string | null;
   archived_at?: string | null;
@@ -27,6 +28,7 @@ export type PlaneWorkItem = {
   created_by?: string | null;
   created_at: string;
   updated_at?: string;
+  sequence_id?: number;
 };
 
 export type PlaneComment = {
@@ -40,7 +42,7 @@ export type PlaneComment = {
   updated_at?: string;
 };
 
-export type ProjectScope = { id: string; sensitivity: Sensitivity; visible_to?: PersonRef[] };
+export type ProjectScope = { id: string; sensitivity: Sensitivity; visible_to?: PersonRef[]; key?: string };
 
 export type PlaneLinks = { appUrl: string; workspaceSlug: string };
 
@@ -94,8 +96,8 @@ export function isSecret(project: PlaneProject): boolean {
 
 export function scopeOf(project: PlaneProject, visibleTo?: PersonRef[]): ProjectScope {
   return isSecret(project)
-    ? { id: project.id, sensitivity: "restricted", visible_to: visibleTo ?? [] }
-    : { id: project.id, sensitivity: "team" };
+    ? { id: project.id, sensitivity: "restricted", visible_to: visibleTo ?? [], key: project.identifier }
+    : { id: project.id, sensitivity: "team", key: project.identifier };
 }
 
 function workItemUrl(links: PlaneLinks, projectId: string, itemId: string): string {
@@ -110,6 +112,7 @@ export function projectBatch(project: PlaneProject, links: PlaneLinks): PlaneBat
     name: project.name,
     url: `${links.appUrl}/${links.workspaceSlug}/projects/${project.id}/issues/`,
     sensitivity: isSecret(project) ? "restricted" : "team",
+    key: project.identifier,
   });
   if (project.project_lead) {
     batch.people.push(planeRef(project.project_lead));
@@ -137,6 +140,7 @@ export function workItemBatch(scope: ProjectScope, item: PlaneWorkItem, links: P
     deleted_at: deletedAt,
     sensitivity: scope.sensitivity,
     visible_to: scope.visible_to,
+    key: scope.key && item.sequence_id ? `${scope.key}-${item.sequence_id}` : undefined,
   });
   batch.links.push({ from: node("source", item.id), rel: "PART_OF", to: node("project", scope.id) });
   if (item.created_by) {

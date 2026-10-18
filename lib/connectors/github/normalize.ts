@@ -10,6 +10,7 @@ export type GhPull = {
   body: string | null;
   html_url: string;
   user: GhUser | null;
+  head?: { ref: string };
   created_at: string;
   updated_at: string;
 };
@@ -89,6 +90,7 @@ export function pullBatch(repo: GhRepo, pr: GhPull, files: string[] = []): Batch
       created_at: pr.created_at,
       updated_at: pr.updated_at,
       sensitivity: sensitivity(repo),
+      branch: pr.head?.ref,
     },
     personOf(pr.user),
     files.map((path) => ({ from: sourceRef(id), rel: "TOUCHES", to: fileRef(repo, path) })),

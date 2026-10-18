@@ -10,6 +10,7 @@
     "connectors:sync": "tsx --env-file-if-exists=.env scripts/connectors-sync.ts",
     "connectors:replay": "tsx --env-file-if-exists=.env scripts/connectors-replay.ts",
     "github:backfill": "tsx --env-file-if-exists=.env scripts/github-backfill.ts",
+    "test": "tsx --test lib/**/*.test.ts",
     "prepare": "husky"
   },
   "devDependencies": {
