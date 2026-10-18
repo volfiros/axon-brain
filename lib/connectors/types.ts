@@ -54,7 +54,7 @@ export type NodeRef =
   | { kind: "source" | "person" | "project"; connector: string; external_id: string }
   | { kind: "codeunit"; repo: string; path: string };
 
-export type LinkRel = "AUTHORED" | "OWNS" | "PART_OF" | "TOUCHES";
+export type LinkRel = "ATTENDED" | "AUTHORED" | "OWNS" | "PART_OF" | "TOUCHES";
 
 export type LinkInput = {
   from: NodeRef;

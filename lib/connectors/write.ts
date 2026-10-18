@@ -20,7 +20,7 @@ type Row = Params[string];
 
 // Labels and relationship types cannot be query parameters, so they are checked before being spliced in.
 const LABEL = /^[A-Z][A-Za-z]*$/;
-const LINK_RELS = new Set<LinkRel>(["AUTHORED", "OWNS", "PART_OF", "TOUCHES"]);
+const LINK_RELS = new Set<LinkRel>(["ATTENDED", "AUTHORED", "OWNS", "PART_OF", "TOUCHES"]);
 
 export function sourceId(connector: string, externalId: string): string {
   return `${connector}:${externalId}`;

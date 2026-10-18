@@ -2,7 +2,7 @@ import type { AxonGraph } from "@/lib/graph/client";
 
 export type LinkResult = "linked" | "already linked" | "taken";
 
-const OUTGOING = ["AUTHORED", "OWNS", "MEMBER_OF", "SAVED"];
+const OUTGOING = ["ATTENDED", "AUTHORED", "OWNS", "MEMBER_OF", "SAVED"];
 const INCOMING = ["MADE_BY", "APPROVED_BY", "VISIBLE_TO"];
 
 /** Moves a proven tool identity, and the imported Person holding it, onto the member. Refuses another member's. */
