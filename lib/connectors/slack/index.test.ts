@@ -87,14 +87,15 @@ function fakeApi(responses: Record<string, Record<string, unknown>>): SlackApi &
   };
 }
 
-test("Backfill yields human people, then messages and replies from channels the bot is in", async () => {
+test("Backfill yields people and named bots, then messages and replies from channels the bot is in", async () => {
   const api = fakeApi({
     "auth.test": { url: "https://acme.slack.test/" },
     "users.list": {
       members: [
         { id: "U1", name: "ada" },
         { id: "U2", name: "grace" },
-        { id: "B1", name: "bot", is_bot: true },
+        { id: "B1", name: "bot", real_name: "Deploy Bot", is_bot: true },
+        { id: "B2", name: "oldbot", is_bot: true, deleted: true },
       ],
     },
     "conversations.list": {
@@ -120,8 +121,12 @@ test("Backfill yields human people, then messages and replies from channels the 
   const batches = await collect(backfillWith(api, { workspace: "acme" } as ConnectorContext));
 
   assert.deepEqual(
-    batches[0].people?.map((p) => p.external_id),
-    ["U1", "U2"],
+    batches[0].people?.map((p) => [p.external_id, p.name]),
+    [
+      ["U1", "ada"],
+      ["U2", "grace"],
+      ["B1", "Deploy Bot"],
+    ],
   );
   const sources = batches.slice(1).flatMap((b) => b.sources ?? []);
   assert.deepEqual(
