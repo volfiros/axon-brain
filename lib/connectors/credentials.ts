@@ -64,9 +64,11 @@ export function encryptSecret(plaintext: string, context: string): string {
 export function decryptSecret(stored: string, context: string): string {
   const [version, iv, tag, body] = stored.split(".");
   if (version !== "v1" || !iv || !tag || body === undefined) throw new Error("Unreadable connector secret");
-  const decipher = createDecipheriv("aes-256-gcm", encryptionKey(), Buffer.from(iv, "base64url"));
+  const authTag = Buffer.from(tag, "base64url");
+  if (authTag.length !== 16) throw new Error("Unreadable connector secret");
+  const decipher = createDecipheriv("aes-256-gcm", encryptionKey(), Buffer.from(iv, "base64url"), { authTagLength: 16 });
   decipher.setAAD(Buffer.from(context));
-  decipher.setAuthTag(Buffer.from(tag, "base64url"));
+  decipher.setAuthTag(authTag);
   return Buffer.concat([decipher.update(Buffer.from(body, "base64url")), decipher.final()]).toString("utf8");
 }
 
@@ -149,14 +151,24 @@ export async function deleteConnector(slug: string, provider: Provider): Promise
   );
 }
 
-/** A Slack team feeds one Workspace, so connecting it here removes it from any other Workspace. */
-export async function releaseSlackTeam(teamId: string, keepSlug: string): Promise<void> {
-  await accountsGraph().query(
-    `MATCH (c:Connector {provider: 'slack', team_id: $teamId})
-     WHERE c.id <> $keep
-     DETACH DELETE c`,
-    { teamId, keep: connectorId(keepSlug, "slack") },
+/**
+ * Stores a Slack install in one query, so two Workspaces can never both claim a team.
+ * Returns false when the team is already connected to another Workspace.
+ */
+export async function claimSlackTeam(slug: string, teamId: string, label: string, token: string): Promise<boolean> {
+  const id = connectorId(slug, "slack");
+  const rows = await accountsGraph().query<{ id: string }>(
+    `MATCH (w:Workspace {slug: $slug})
+     OPTIONAL MATCH (other:Connector {provider: 'slack', team_id: $teamId})
+     WHERE other.id <> $id
+     WITH w, count(other) AS taken
+     WHERE taken = 0
+     MERGE (c:Connector {id: $id})-[:FOR]->(w)
+     SET c.provider = 'slack', c.team_id = $teamId, c.label = $label, c.enc_token = $token
+     RETURN c.id AS id`,
+    { slug, id, teamId, label, token: encryptSecret(token, `${id}:token`) },
   );
+  return rows.length > 0;
 }
 
 export async function workspaceForSlackTeam(teamId: string): Promise<string | null> {

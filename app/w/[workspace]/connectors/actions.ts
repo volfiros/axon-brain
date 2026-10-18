@@ -4,10 +4,10 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 
 import { requireAccount } from "@/lib/auth/session";
-import { assertAdmin, deleteConnector, isProvider, loadSecrets, setConnectorStatus } from "@/lib/connectors/credentials";
+import { assertAdmin, deleteConnector, isProvider, loadSecrets } from "@/lib/connectors/credentials";
 import { disconnectGithub, githubConnection, setStatus, syncInstallation } from "@/lib/connectors/github/connection";
 import { connectPlane, removePlaneWebhook, savePlaneWebhookSecret } from "@/lib/connectors/plane/connect";
-import { resolvePlane, resolveSlack, syncConnector } from "@/lib/connectors/sync";
+import { beginSync, resolvePlane, resolveSlack, runSync } from "@/lib/connectors/sync";
 
 export type ConnectorKey = "github" | "slack" | "plane";
 export type FormResult = { error?: string; ok?: boolean };
@@ -24,8 +24,9 @@ async function adminRun(slug: string, change: (accountId: string) => Promise<voi
   return { ok: true };
 }
 
-function startSync(slug: string, provider: "slack" | "plane") {
-  after(() => syncConnector(slug, provider).catch((err) => console.error(`${provider} sync for ${slug} failed:`, err)));
+async function startSync(slug: string, provider: "slack" | "plane") {
+  const since = await beginSync(slug, provider);
+  after(() => runSync(slug, provider, since).catch((err) => console.error(`${provider} sync for ${slug} failed:`, err)));
 }
 
 export async function syncNowAction(slug: string, key: ConnectorKey): Promise<FormResult> {
@@ -43,8 +44,7 @@ export async function syncNowAction(slug: string, key: ConnectorKey): Promise<Fo
     if (!isProvider(key)) throw new Error("Unknown connector");
     const connected = key === "plane" ? await resolvePlane(slug) : await resolveSlack(slug);
     if (!connected) throw new Error(`${key === "plane" ? "Plane" : "Slack"} is not connected`);
-    await setConnectorStatus(slug, key, "syncing");
-    startSync(slug, key);
+    await startSync(slug, key);
   });
 }
 
@@ -70,7 +70,7 @@ export async function connectPlaneAction(slug: string, _prev: FormResult, form: 
       workspaceSlug: String(form.get("workspaceSlug") ?? ""),
       apiUrl: String(form.get("apiUrl") ?? ""),
     });
-    startSync(slug, "plane");
+    await startSync(slug, "plane");
   });
 }
 

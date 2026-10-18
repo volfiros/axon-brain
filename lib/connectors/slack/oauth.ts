@@ -1,6 +1,6 @@
 import { appUrl } from "@/lib/auth";
 
-import { assertAdmin, releaseSlackTeam, saveConnector, setConnectorStatus } from "../credentials";
+import { assertAdmin, claimSlackTeam } from "../credentials";
 import { signState } from "../github/connection";
 
 export const SLACK_SCOPES = [
@@ -67,8 +67,8 @@ export async function completeSlackInstall(
   if (!reply.ok || reply.token_type !== "bot" || !reply.access_token || !reply.team?.id) {
     throw new Error(`Slack install failed: ${reply.error ?? "no bot token"}`);
   }
-  await releaseSlackTeam(reply.team.id, slug);
-  await saveConnector(slug, "slack", { team_id: reply.team.id, label: reply.team.name ?? reply.team.id }, { token: reply.access_token });
-  await setConnectorStatus(slug, "slack", "syncing");
+  if (!(await claimSlackTeam(slug, reply.team.id, reply.team.name ?? reply.team.id, reply.access_token))) {
+    throw new Error("This Slack workspace is connected to another Axon workspace; disconnect it there first");
+  }
   return { teamId: reply.team.id };
 }
