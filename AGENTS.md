@@ -34,7 +34,7 @@ Write self-explanatory code with no comments by default. Add a one-line comment 
 
 ## UI
 
-- `components/ui/` holds the shared kit (adapted from morpho-lite-apps, MIT, see its LICENSE). `components/` holds Axon blocks: `PageShell`, `PageHeader`, `EmptyState`, `DecisionStatusBadge`. Build pages from these.
+- `components/ui/` holds the shared kit (MIT, see its LICENSE). `components/` holds Axon blocks: `PageShell`, `PageHeader`, `EmptyState`, `DecisionStatusBadge`. Build pages from these.
 - Colors, spacing, radius and type come from the theme tokens in `app/globals.css` and Tailwind's default scale. No hex values, arbitrary values such as `p-[13px]`, or inline styles in pages and feature components.
 - Variants live on the shared components through class-variance-authority. Add a variant there instead of repeating class strings across pages.
 - Add a new block only when a second use appears.

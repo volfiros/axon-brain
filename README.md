@@ -173,12 +173,13 @@ graph LR
 ### Use the live site
 
 1. Sign up at https://axonteam.vercel.app and create a workspace.
-2. Open **Connectors** to connect GitHub.
-3. Open **Setup** to get your workspace's MCP address, `https://axonteam.vercel.app/w/<workspace>/mcp`.
+2. Open **Connectors** to connect GitHub (pick only the repositories the team works on), Slack and Plane.
+3. Open **Members** to invite teammates. Each teammate clicks **Link Slack** and **Link GitHub** under **Your accounts**, so their activity in those tools counts as theirs. Their Plane activity follows when its email matches their Slack email.
+4. Open **Setup** to get your workspace's MCP address, `https://axonteam.vercel.app/w/<workspace>/mcp`.
 
 ### Connect Claude Code
 
-The brain server is a remote MCP server (Streamable HTTP) with OAuth sign-in. The first call opens a browser to sign in to Axon.
+The brain server is a remote MCP server (Streamable HTTP) with OAuth sign-in. There is no API key to copy.
 
 Commit this as `.mcp.json` at the root of your repository, which is what the Setup page shows:
 
@@ -195,6 +196,14 @@ Or add it from the shell:
 ```bash
 claude mcp add --transport http axon https://axonteam.vercel.app/w/<workspace>/mcp
 ```
+
+Then sign in:
+
+1. Run `claude`, open `/mcp`, select `axon` and choose **Authenticate**.
+2. Your browser opens Axon. Sign in and approve the client.
+3. Claude Code stores the token and refreshes it. Ask it to call `whoami` to see your member and role.
+
+The token only works for this workspace. A non-member gets refused, and your role decides what the brain shows you.
 
 ### Run locally
 
@@ -232,6 +241,11 @@ Optional scripts:
 - `npm run github:backfill -- <workspace> <installation id>` backfills a repository through the GitHub App.
 
 The GitHub App, Plane and Slack variables in `.env.example` are only needed for those connectors.
+
+Link Slack and Link GitHub need `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET`, `GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET` and `CONNECTOR_STATE_SECRET`. Register these redirect URLs:
+
+- GitHub App, under **Identifying and authorizing users**: `<app url>/api/connectors/github/callback/link`. Generate the client secret under **Client secrets** on the same page.
+- Slack app, under **OAuth & Permissions**: `<app url>/api/connectors/slack/callback`. Linking uses a path below it, which Slack accepts.
 
 ## What we tested
 
@@ -275,4 +289,4 @@ All demo data is synthetic or created by the team. No private, personal or login
 
 ## License
 
-MIT, see [LICENSE](LICENSE). The UI kit in `components/ui/` is adapted from morpho-lite-apps under the MIT license. Its LICENSE file sits next to the components.
+MIT, see [LICENSE](LICENSE). The UI kit in `components/ui/` is adapted from an MIT-licensed project. Its LICENSE file sits next to the components.
