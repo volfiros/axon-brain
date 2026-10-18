@@ -12,7 +12,7 @@
     "github:backfill": "tsx --env-file-if-exists=.env scripts/github-backfill.ts",
     "test": "npm run test:unit",
     "test:unit": "tsx --test \"lib/**/*.test.ts\"",
-    "test:integration": "tsx --test \"tests/integration/**/*.test.ts\"",
+    "test:integration": "tsx --import ./tests/helpers/env.ts --test \"tests/integration/**/*.test.ts\"",
     "prepare": "husky"
   },
   "devDependencies": {
