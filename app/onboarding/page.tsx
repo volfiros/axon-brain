@@ -7,6 +7,7 @@ import { PageShell } from "@/components/page-shell";
 import { RoleBadge } from "@/components/role-badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { appUrl } from "@/lib/auth";
 import { requireAccount } from "@/lib/auth/session";
 import { listMemberships } from "@/lib/workspaces";
 
@@ -60,7 +61,7 @@ export default async function OnboardingPage() {
         </Table>
       )}
       <div className="grid gap-6 md:grid-cols-2">
-        <CreateWorkspaceForm />
+        <CreateWorkspaceForm host={new URL(appUrl).host} />
         <JoinWorkspaceForm />
       </div>
     </PageShell>
