@@ -1,13 +1,14 @@
 import { after } from "next/server";
 
 import { slackConnector, type SlackEnvelope } from "@/lib/connectors/slack";
+import { resolveSlack } from "@/lib/connectors/sync";
 import { writeBatch } from "@/lib/connectors/write";
 import { workspaceGraph } from "@/lib/graph/client";
 
 export async function POST(req: Request, { params }: { params: Promise<{ workspace: string }> }) {
   const { workspace } = await params;
-  // Connector credentials in .env belong to one Workspace, so every other slug is refused.
-  if (workspace !== process.env.CONNECTORS_WORKSPACE) return new Response(null, { status: 404 });
+  const credentials = await resolveSlack(workspace).catch(() => null);
+  if (!credentials) return new Response(null, { status: 404 });
 
   const rawBody = await req.text();
   if (!slackConnector.verifyWebhook(req, rawBody)) return new Response(null, { status: 401 });
@@ -25,7 +26,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ workspa
   const headers = req.headers;
   after(async () => {
     try {
-      for await (const batch of slackConnector.eventToBatches(headers, payload, { workspace, graph })) {
+      for await (const batch of slackConnector.eventToBatches(headers, payload, { workspace, graph, token: credentials.token })) {
         await writeBatch(graph, batch);
       }
     } catch (err) {

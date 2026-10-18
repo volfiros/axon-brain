@@ -133,3 +133,12 @@ export async function syncInstallation(slug: string, installationId: number, sin
     throw err;
   }
 }
+
+/** Unlinks the installation from the Workspace. The App stays installed on GitHub until the owner removes it there. */
+export async function disconnectGithub(slug: string): Promise<void> {
+  await accountsGraph().query(
+    `MATCH (c:Connector {provider: 'github'})-[:FOR]->(:Workspace {slug: $slug})
+     DETACH DELETE c`,
+    { slug },
+  );
+}
