@@ -42,6 +42,7 @@ test("Plane work-item and browse URLs", () => {
   const project = "b2000000-0000-4000-8000-000000000001";
   assert.deepEqual(parseUrl(`https://plane.example/tallyroll/projects/${project}/issues/${id}`), { kind: "workitem", id, host: "plane.example" });
   assert.deepEqual(parseUrl(`https://app.plane.so/ws/projects/${project}/work-items/${id}/`), { kind: "workitem", id, host: "app.plane.so" });
+  assert.deepEqual(parseUrl(`https://app.plane.so/ws/projects/${project}/pages/${id}`), { kind: "workitem", id, host: "app.plane.so" });
   assert.deepEqual(parseUrl("https://app.plane.so/ws/browse/bil-4/"), { kind: "key", key: "BIL-4", host: "app.plane.so" });
 });
 

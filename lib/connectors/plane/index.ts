@@ -9,6 +9,7 @@ import {
   commentBatch,
   isSecret,
   memberToPerson,
+  pageBatch,
   planeRef,
   projectBatch,
   scopeOf,
@@ -16,6 +17,7 @@ import {
   type PlaneComment,
   type PlaneLinks,
   type PlaneMember,
+  type PlanePage,
   type PlaneProject,
   type PlaneWorkItem,
   type ProjectScope,
@@ -71,6 +73,22 @@ export async function* backfillWith(api: PlaneApi, ctx: ConnectorContext, links 
         yield commentBatch(scope, comment, item.name, links);
       }
     }
+
+    for (const page of await projectPages(api, project.id)) {
+      if (page.archived_at || !isNewerThan(page.updated_at, ctx.since)) continue;
+      const full = await api.get<PlanePage>(`/projects/${project.id}/pages/${page.id}/`);
+      yield pageBatch(scope, { ...page, ...full }, links);
+    }
+  }
+}
+
+// Some Plane editions and plans have no Pages API, so a failed listing skips Pages instead of failing the sync.
+async function projectPages(api: PlaneApi, projectId: string): Promise<PlanePage[]> {
+  try {
+    return await collect(api.list<PlanePage>(`/projects/${projectId}/pages/`));
+  } catch (err) {
+    console.warn(`Plane pages for project ${projectId} skipped:`, err instanceof Error ? err.message : err);
+    return [];
   }
 }
 

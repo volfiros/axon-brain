@@ -42,6 +42,19 @@ export type PlaneComment = {
   updated_at?: string;
 };
 
+export type PlanePage = {
+  id: string;
+  name: string;
+  description_html?: string;
+  description_stripped?: string | null;
+  description?: unknown;
+  owned_by?: string | null;
+  access?: number;
+  archived_at?: string | null;
+  created_at: string;
+  updated_at?: string;
+};
+
 export type ProjectScope = { id: string; sensitivity: Sensitivity; visible_to?: PersonRef[]; key?: string };
 
 export type PlaneLinks = { appUrl: string; workspaceSlug: string };
@@ -49,6 +62,7 @@ export type PlaneLinks = { appUrl: string; workspaceSlug: string };
 type PlaneBatch = Required<Batch>;
 
 const PUBLIC_NETWORK = 2;
+const PUBLIC_PAGE = 0;
 
 function newBatch(): PlaneBatch {
   return { sources: [], people: [], projects: [], codeUnits: [], links: [] };
@@ -180,6 +194,39 @@ export function commentBatch(
   if (author) {
     batch.people.push(planeRef(author));
     batch.links.push({ from: node("person", author), rel: "AUTHORED", to: node("source", comment.id) });
+  }
+  return batch;
+}
+
+export function pageUrl(links: PlaneLinks, projectId: string, pageId: string): string {
+  return `${links.appUrl}/${links.workspaceSlug}/projects/${projectId}/pages/${pageId}`;
+}
+
+// A private page stays with its owner even inside a public project; a missing `access` counts as private.
+export function pageBatch(scope: ProjectScope, page: PlanePage, links: PlaneLinks, deletedAt?: string): PlaneBatch {
+  const batch = newBatch();
+  const shared = page.access === PUBLIC_PAGE;
+  const owner = page.owned_by ? [planeRef(page.owned_by)] : [];
+  // Plane's page detail documents `description`; older responses carry `description_html` instead.
+  const html = page.description_html ?? (typeof page.description === "string" ? page.description : "");
+  const body = page.description_stripped ?? htmlToText(html);
+  batch.sources.push({
+    connector: "plane",
+    external_id: page.id,
+    labels: ["Doc"],
+    url: pageUrl(links, scope.id, page.id),
+    title: page.name,
+    text: body ? `${page.name}\n\n${body}` : page.name,
+    created_at: page.created_at,
+    updated_at: page.updated_at,
+    deleted_at: deletedAt,
+    sensitivity: shared ? scope.sensitivity : "restricted",
+    visible_to: shared ? scope.visible_to : owner,
+  });
+  batch.links.push({ from: node("source", page.id), rel: "PART_OF", to: node("project", scope.id) });
+  if (page.owned_by) {
+    batch.people.push(planeRef(page.owned_by));
+    batch.links.push({ from: node("person", page.owned_by), rel: "AUTHORED", to: node("source", page.id) });
   }
   return batch;
 }

@@ -8,10 +8,12 @@ import {
   htmlToText,
   isSecret,
   memberToPerson,
+  pageBatch,
   projectBatch,
   scopeOf,
   workItemBatch,
   type PlaneComment,
+  type PlanePage,
   type ProjectScope,
 } from "./normalize";
 
@@ -198,4 +200,51 @@ test("A comment without an actor falls back to its creator, and with neither has
 test("A comment prefers its stripped text over its HTML", () => {
   const batch = commentBatch(teamScope, { ...comment, comment_stripped: "Plain" }, "x", links);
   assert.equal(batch.sources[0].text, "Plain");
+});
+
+const page: PlanePage = {
+  id: "page-1",
+  name: "ADR-002 Require human approval",
+  description_html: "<p>Agents propose, people accept.</p>",
+  owned_by: "member-1",
+  access: 0,
+  created_at: "2026-10-01T10:00:00Z",
+  updated_at: "2026-10-02T10:00:00Z",
+};
+
+test("A public page becomes a Doc in its project, with the project's visibility, authored by its owner", () => {
+  const batch = pageBatch(teamScope, page, links);
+  assert.deepEqual(batch.sources, [
+    {
+      connector: "plane",
+      external_id: "page-1",
+      labels: ["Doc"],
+      url: "https://plane.example.test/acme/projects/proj-1/pages/page-1",
+      title: "ADR-002 Require human approval",
+      text: "ADR-002 Require human approval\n\nAgents propose, people accept.",
+      created_at: "2026-10-01T10:00:00Z",
+      updated_at: "2026-10-02T10:00:00Z",
+      deleted_at: undefined,
+      sensitivity: "team",
+      visible_to: undefined,
+    },
+  ]);
+  assert.deepEqual(batch.links, [
+    { from: node("source", "page-1"), rel: "PART_OF", to: node("project", "proj-1") },
+    { from: node("person", "member-1"), rel: "AUTHORED", to: node("source", "page-1") },
+  ]);
+});
+
+test("A private page, or one without an access value, is visible to its owner only", () => {
+  for (const access of [1, undefined]) {
+    const [source] = pageBatch(teamScope, { ...page, access }, links).sources;
+    assert.equal(source.sensitivity, "restricted");
+    assert.deepEqual(source.visible_to, [{ connector: "plane", external_id: "member-1" }]);
+  }
+});
+
+test("A page reads its text from the documented description field when there is no HTML field", () => {
+  const { description_html: _, ...rest } = page;
+  const [source] = pageBatch(teamScope, { ...rest, description: "<p>From description</p>" }, links).sources;
+  assert.equal(source.text, "ADR-002 Require human approval\n\nFrom description");
 });
