@@ -31,6 +31,8 @@ export type SourceInput = {
   key?: string;
   /** A pull request's head branch, scanned for work-item keys. */
   branch?: string;
+  /** The chat channel a message was posted in, so search can return the conversation around a hit. */
+  channel?: string;
 };
 
 export type ProjectInput = {

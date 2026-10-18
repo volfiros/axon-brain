@@ -124,8 +124,8 @@ RETURN d
 
 | Kind | Indexed |
 | --- | --- |
-| Range | `id` on every core label, `Person.account_id`, `CodeUnit.path`, `Decision.status`, `Meeting(id, created_at)` |
-| Full-text | `Decision(title, statement)`, `Excerpt(text)` |
+| Range | `id` on every core label, `Person.account_id`, `CodeUnit.path`, `Decision.status`, `Meeting(id, created_at)`, `Source.channel` |
+| Full-text | `Decision(title, statement)`, `Excerpt(text)`, `Source(title, text)` |
 | Vector | `Decision.embedding`, cosine, only when `EMBEDDING_DIMENSION` is set |
 
 ```cypher
@@ -242,6 +242,7 @@ The brain MCP server lives at `/w/<workspace>/mcp` (ADR 0003). The workspace com
 | --- | --- |
 | `whoami` | The caller's Person, Role, Teams and Workspace |
 | `recall(question)` | Answer with Decision and status, Because, Rejected, Decided by and date, Source quote and link, graph Path |
+| `search_sources(query, limit)` | Raw Sources the caller can see (messages, docs, meetings, PRs, work items) ranked by the query words they cover, each top message followed by its conversation (see Source search) |
 | `save(item, confirm)` | Preview a Decision, Constraint, Assumption or context note; writes only with `confirm: true` |
 | `save_session(step, session, items)` | Preview, then save a coding session's distilled decisions, constraints, assumptions, questions and notes (see Session capture) |
 | `supersede(old_id, item, confirm)` | Replace a decision and keep the old one as history |
@@ -298,6 +299,26 @@ Still holds, through application code only:
 
 ```cypher
 SET link.source_hash = s.content_hash, link.checked_at = localdatetime(), link.checked_by = $personId
+```
+
+### Source search
+
+`search_sources` reads Sources directly, for questions no decision covers yet. Full-text scores favour short texts that repeat one word, so the tool takes a wide pool from the `Source(title, text)` index, re-ranks it by the query words each candidate covers (rarer words count more), and then adds the messages posted within six hours of each top hit in the same `channel` (Slack sets `slack:<channel id>`). Everything is filtered by `visible()` first, so a conversation never reaches past what the caller can see.
+
+```cypher
+MATCH (u:Person {id: $personId})-[:HAS_ROLE]->(role:Role)
+CALL db.idx.fulltext.queryNodes('Source', $q) YIELD node AS s, score
+WITH u, role, s, score
+WHERE s.deleted_at IS NULL AND <visible(s)>
+RETURN s.id, s.channel, s.created_at, score, toLower(s.title + ' ' + s.text) AS text
+ORDER BY score DESC LIMIT 2000
+```
+
+```cypher
+UNWIND $anchors AS h
+MATCH (s:Source {channel: h.channel})
+WHERE s.id <> h.id AND s.created_at >= localdatetime(h.from) AND s.created_at <= localdatetime(h.to) AND <visible(s)>
+RETURN h.id AS hit, s.id
 ```
 
 ### Recall
@@ -569,7 +590,7 @@ An Admin connects Plane and Slack once per Workspace and Axon keeps them in sync
 | Plane work item | `(:WorkItem:Source)`, id `plane:<id>`, `key` = `<identifier>-<sequence_id>` (`BIL-1`) | `PART_OF` its Project, creator `AUTHORED`, assignees `OWNS` |
 | Plane comment | `(:Source:Message)`, id `plane:<id>` | `PART_OF` its work item, author `AUTHORED` |
 | Plane page | `(:Source:Doc)`, id `plane:<id>`, checked on every sync against the graph, fetched when missing or edited since (Plane sends no page webhooks); skipped when the Plane has no Pages API | `PART_OF` its Project, owner `AUTHORED`; a private page is `restricted` to its owner |
-| Slack message | `(:Source:Message)`, id `slack:<channel>:<ts>` | author `AUTHORED`, a thread reply is `PART_OF` its root message |
+| Slack message | `(:Source:Message)`, id `slack:<channel>:<ts>`, `channel` = `slack:<channel id>` | author `AUTHORED`, a thread reply is `PART_OF` its root message |
 | Plane member, Slack user | `Person` | matched across tools, see below |
 
 - Every connector Source carries `connector`, `external_id`, `url`, `created_at`, `updated_at` and `synced_at`. A deleted message or work item gets `deleted_at` and stays in the graph.
@@ -677,10 +698,10 @@ No meeting connector exists yet. The graph already accepts this shape, so a tran
 
 | HERB question | Axon tool |
 | --- | --- |
-| Content-based | `recall` |
-| People search | `who_knows` |
-| Artifact search | `recall` (Source links) |
-| Unanswerable | `recall` with no match, `check_answer` |
+| Content-based | `recall`, `search_sources` |
+| People search | `who_knows`, `search_sources` (authors and attendees) |
+| Artifact search | `search_sources` (Source links) |
+| Unanswerable | `search_sources` with no match, `check_answer` |
 
 ## Session capture
 

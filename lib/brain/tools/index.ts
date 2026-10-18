@@ -12,6 +12,7 @@ import recall from "./recall";
 import reviewProposals from "./review-proposals";
 import reviewSourceChanges from "./review-source-changes";
 import save from "./save";
+import searchSources from "./search-sources";
 import saveAnswer from "./save-answer";
 import saveSession from "./save-session";
 import staleDecisions from "./stale-decisions";
@@ -22,6 +23,7 @@ import whoKnows from "./who-knows";
 export const tools: BrainTool[] = [
   whoami,
   recall,
+  searchSources,
   save,
   saveSession,
   supersede,

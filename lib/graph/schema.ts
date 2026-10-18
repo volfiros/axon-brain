@@ -28,11 +28,13 @@ const RANGE_INDEXES: [label: string, property: string][] = [
   ["Decision", "status"],
   ["Meeting", "id"],
   ["Meeting", "created_at"],
+  ["Source", "channel"],
 ];
 
 const FULLTEXT_INDEXES: [label: string, properties: string[]][] = [
   ["Decision", ["title", "statement"]],
   ["Excerpt", ["text"]],
+  ["Source", ["title", "text"]],
 ];
 
 function indexStatements(): string[] {

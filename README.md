@@ -161,7 +161,7 @@ graph LR
 
 - Web app. Next.js App Router and TypeScript on Vercel. Pages for workspaces, decisions and proposals, people, members, connectors and MCP setup.
 - Sign-in. Better Auth with a FalkorDB adapter (`lib/auth/falkordb-adapter.ts`), so accounts, sessions and OAuth tokens are nodes in the accounts graph.
-- The brain MCP server lives at `/w/<workspace>/mcp`. The workspace comes only from the URL. Each workspace is its own OAuth resource, so a token issued for one workspace gets a 401 at another. Tools: `whoami`, `recall`, `save`, `save_session`, `supersede`, `who_knows`, `impact`, `pending_sources`, `propose_from_source`, `review_proposals`, `review_source_changes`. Reads use `roQuery`, and writes go through `lib/brain/write.ts` only.
+- The brain MCP server lives at `/w/<workspace>/mcp`. The workspace comes only from the URL. Each workspace is its own OAuth resource, so a token issued for one workspace gets a 401 at another. Tools: `whoami`, `recall`, `search_sources`, `save`, `save_session`, `supersede`, `who_knows`, `impact`, `pending_sources`, `propose_from_source`, `review_proposals`, `review_source_changes`. Reads use `roQuery`, and writes go through `lib/brain/write.ts` only.
 - Connectors. GitHub (an installed GitHub App), Plane and Slack. Each webhook checks its signature (`X-Hub-Signature-256`, `X-Plane-Signature`, Slack v0 with a five-minute replay window) and writes after the response. Connectors make no LLM call: new sources wait as `extraction: 'pending'`, and the team's own agent proposes decisions from them. Each quote must appear word for word in the source, and a person accepts or dismisses each proposal.
 - Session capture. `save_session` lets a teammate's coding agent save what a session settled. The agent distills the conversation on the teammate's machine and sends only short structured items with 1 to 3 verbatim excerpts each. Axon makes no LLM call and never stores the transcript. The server rejects items that contain keys, tokens or code, and masks emails, phone numbers and local paths.
 
@@ -246,6 +246,10 @@ Link Slack and Link GitHub need `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET`, `GITHU
 
 - GitHub App, under **Identifying and authorizing users**: `<app url>/api/connectors/github/callback/link`. Generate the client secret under **Client secrets** on the same page.
 - Slack app, under **OAuth & Permissions**: `<app url>/api/connectors/slack/callback`. Linking uses a path below it, which Slack accepts.
+
+## Benchmark
+
+We ran Axon against [HERB](https://github.com/SalesforceAIResearch/HERB), Salesforce's enterprise deep-search benchmark (30 products, 43,209 Sources across Slack messages, docs, meetings and PRs, 815 answerable questions). Source search finds cited evidence in the first 10 results for 86% of questions, against 31% for FalkorDB full-text alone and 32% for a random order. Method, every number and the limits are in [docs/benchmark.md](docs/benchmark.md).
 
 ## What we tested
 

@@ -90,6 +90,7 @@ test("A top-level message becomes a Message Source with a permalink and an autho
       deleted_at: undefined,
       sensitivity: "team",
       visible_to: undefined,
+      channel: "slack:C1",
     },
   ]);
   assert.deepEqual(batch.people, [{ connector: "slack", external_id: "U1" }]);

@@ -13,7 +13,10 @@
     "test": "npm run test:unit",
     "test:unit": "tsx --import ./tests/helpers/unit-env.ts --test --test-timeout=60000 \"lib/**/*.test.ts\"",
     "test:integration": "tsx --import ./tests/helpers/env.ts --test --test-timeout=60000 \"tests/integration/**/*.test.ts\"",
-    "prepare": "husky"
+    "prepare": "husky",
+    "herb:load": "tsx --env-file-if-exists=.env scripts/herb/load.ts",
+    "herb:retrieval": "tsx --env-file-if-exists=.env scripts/herb/retrieval.ts",
+    "herb:answer": "tsx --env-file-if-exists=.env scripts/herb/answer.ts"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",
