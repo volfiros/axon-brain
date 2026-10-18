@@ -138,26 +138,40 @@ test("Events Axon does not handle, and work items or comments missing ids, yield
   );
 });
 
-test("Backfill reads each live page's full text, and skips archived pages and pages not updated since the resume point", async () => {
-  const listed = { name: "Runbook", owned_by: "user-1", access: 0, created_at: "2026-10-01T00:00:00Z" };
+test("Backfill reads pages missing from the graph or edited since, and skips archived and unchanged pages", async () => {
+  const listed = { name: "Runbook", owned_by: "user-1", access: 0, created_at: "2026-09-01T00:00:00Z" };
   const api = fakeApi({
     "/projects/": [planeProject()],
     "/projects/proj-1/pages/": [
-      { ...listed, id: "page-new", updated_at: "2026-10-05T00:00:00Z" },
-      { ...listed, id: "page-old", updated_at: "2026-09-01T00:00:00Z" },
+      { ...listed, id: "page-edited", updated_at: "2026-10-05T00:00:00Z" },
+      { ...listed, id: "page-unchanged", updated_at: "2026-09-01T00:00:00Z" },
+      { ...listed, id: "page-missing", updated_at: "2026-09-01T00:00:00Z" },
       { ...listed, id: "page-archived", updated_at: "2026-10-05T00:00:00Z", archived_at: "2026-10-05T00:00:00Z" },
     ],
-    "/projects/proj-1/pages/page-new/": { id: "page-new", description_html: "<p>Restart the worker.</p>" },
+    "/projects/proj-1/pages/page-edited/": { id: "page-edited", description_html: "<p>Restart the worker.</p>" },
+    "/projects/proj-1/pages/page-missing/": { id: "page-missing", description_html: "<p>Rotate the keys.</p>" },
   });
+  const graph = {
+    async roQuery() {
+      return [
+        { id: "page-edited", at: "2026-09-01T00:00:00" },
+        { id: "page-unchanged", at: "2026-09-01T00:00:00" },
+      ];
+    },
+  } as unknown as ConnectorContext["graph"];
 
-  const batches = await collect(backfillWith(api, { ...ctx, since: "2026-10-01T00:00:00Z" }, links));
+  // The resume point is after every page, as on the first sync after Pages support shipped.
+  const batches = await collect(backfillWith(api, { ...ctx, graph, since: "2026-10-10T00:00:00Z" }, links));
   const docs = batches.flatMap((b) => b.sources ?? []).filter((s) => s.labels.includes("Doc"));
 
   assert.deepEqual(
     docs.map((s) => [s.external_id, s.text]),
-    [["page-new", "Runbook\n\nRestart the worker."]],
+    [
+      ["page-edited", "Runbook\n\nRestart the worker."],
+      ["page-missing", "Runbook\n\nRotate the keys."],
+    ],
   );
-  assert.ok(!api.paths.includes("/projects/proj-1/pages/page-old/"));
+  assert.ok(!api.paths.includes("/projects/proj-1/pages/page-unchanged/"));
 });
 
 test("A Plane without a Pages API still syncs the project's work items", async () => {

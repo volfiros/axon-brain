@@ -568,7 +568,7 @@ An Admin connects Plane and Slack once per Workspace and Axon keeps them in sync
 | Plane project | `Project`, id `plane:<id>`, `key` = project identifier (`BIL`) | project lead `OWNS` it |
 | Plane work item | `(:WorkItem:Source)`, id `plane:<id>`, `key` = `<identifier>-<sequence_id>` (`BIL-1`) | `PART_OF` its Project, creator `AUTHORED`, assignees `OWNS` |
 | Plane comment | `(:Source:Message)`, id `plane:<id>` | `PART_OF` its work item, author `AUTHORED` |
-| Plane page | `(:Source:Doc)`, id `plane:<id>`, read on every sync (Plane sends no page webhooks); skipped when the Plane has no Pages API | `PART_OF` its Project, owner `AUTHORED`; a private page is `restricted` to its owner |
+| Plane page | `(:Source:Doc)`, id `plane:<id>`, checked on every sync against the graph, fetched when missing or edited since (Plane sends no page webhooks); skipped when the Plane has no Pages API | `PART_OF` its Project, owner `AUTHORED`; a private page is `restricted` to its owner |
 | Slack message | `(:Source:Message)`, id `slack:<channel>:<ts>` | author `AUTHORED`, a thread reply is `PART_OF` its root message |
 | Plane member, Slack user | `Person` | matched across tools, see below |
 

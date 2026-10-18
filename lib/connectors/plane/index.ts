@@ -74,8 +74,10 @@ export async function* backfillWith(api: PlaneApi, ctx: ConnectorContext, links 
       }
     }
 
-    for (const page of await projectPages(api, project.id)) {
-      if (page.archived_at || !isNewerThan(page.updated_at, ctx.since)) continue;
+    const pages = (await projectPages(api, project.id)).filter((page) => !page.archived_at);
+    const stored = await storedPageTimes(ctx.graph, pages.map((page) => page.id));
+    for (const page of pages) {
+      if (stored.has(page.id) && !isNewerThan(page.updated_at, `${stored.get(page.id)}Z`)) continue;
       const full = await api.get<PlanePage>(`/projects/${project.id}/pages/${page.id}/`);
       yield pageBatch(scope, { ...page, ...full }, links);
     }
@@ -90,6 +92,17 @@ async function projectPages(api: PlaneApi, projectId: string): Promise<PlanePage
     console.warn(`Plane pages for project ${projectId} skipped:`, err instanceof Error ? err.message : err);
     return [];
   }
+}
+
+// Pages are compared with the graph, not the last sync, because Plane sends no page webhooks and older pages would never arrive.
+async function storedPageTimes(graph: AxonGraph, ids: string[]): Promise<Map<string, string>> {
+  if (ids.length === 0) return new Map();
+  const rows = await graph.roQuery<{ id: string; at: string }>(
+    `MATCH (s:Doc:Source {connector: 'plane'}) WHERE s.external_id IN $ids
+     RETURN s.external_id AS id, toString(coalesce(s.updated_at, s.created_at)) AS at`,
+    { ids },
+  );
+  return new Map(rows.map((row) => [row.id, row.at]));
 }
 
 // A project Axon has not synced yet stays Admin-only until the next poll reads its members.
