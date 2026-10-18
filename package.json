@@ -11,8 +11,8 @@
     "connectors:replay": "tsx --env-file-if-exists=.env scripts/connectors-replay.ts",
     "github:backfill": "tsx --env-file-if-exists=.env scripts/github-backfill.ts",
     "test": "npm run test:unit",
-    "test:unit": "tsx --test \"lib/**/*.test.ts\"",
-    "test:integration": "tsx --import ./tests/helpers/env.ts --test \"tests/integration/**/*.test.ts\"",
+    "test:unit": "tsx --import ./tests/helpers/unit-env.ts --test --test-timeout=60000 \"lib/**/*.test.ts\"",
+    "test:integration": "tsx --import ./tests/helpers/env.ts --test --test-timeout=60000 \"tests/integration/**/*.test.ts\"",
     "prepare": "husky"
   },
   "devDependencies": {
