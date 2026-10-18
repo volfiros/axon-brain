@@ -50,27 +50,30 @@ const FIELDS = `n.id AS id, [l IN labels(n) WHERE l IN $types][0] AS type,
 const CORE: NodeType[] = ["Decision", "Constraint", "Assumption"];
 const CHANGES_PER_DECISION = 5;
 
-// Tier 1: what a decision was quoted from or points at. Tier 2: the newest sources that changed the code it affects.
-// Only ids are read here; a node is drawn only if the visibility-filtered reads above also returned it.
+// Tier 1: what a decision was quoted from or points at. Tier 2: the newest sources the caller can see that changed the
+// code it affects. Only ids are read here; a node is drawn only if the visibility-filtered reads above also returned it.
+const DECIDED = "coalesce(d.valid_from, d.recorded_at) AS decided, d.id AS decision";
 const NEAR_DECISIONS = `
   ${FROM_CALLER}
   MATCH (d:Decision)-[:DERIVED_FROM]->(ex:Excerpt)-[:IN]->(s:Source)
   WHERE ${LIVE("d")} AND ${visible("d")}
   UNWIND [ex.id, s.id] AS id
-  RETURN id, 1 AS tier
+  RETURN id, 1 AS tier, ${DECIDED}
   UNION
   ${FROM_CALLER}
   MATCH (d:Decision)-[:MADE_BY|APPROVED_BY|ABOUT|AFFECTS|BECAUSE_OF]->(x)
   WHERE ${LIVE("d")} AND ${visible("d")}
-  RETURN x.id AS id, 1 AS tier
+  RETURN x.id AS id, 1 AS tier, ${DECIDED}
   UNION
   ${FROM_CALLER}
   MATCH (d:Decision)-[:AFFECTS]->(:CodeUnit)<-[:TOUCHES]-(s:Source)
-  WHERE ${LIVE("d")} AND ${visible("d")} AND s.deleted_at IS NULL
+  WHERE ${LIVE("d")} AND ${visible("d")} AND s.deleted_at IS NULL AND ${visible("s")}
   WITH d, s ORDER BY s.created_at DESC
   WITH d, collect(DISTINCT s.id)[0..$perDecision] AS changes
   UNWIND changes AS id
-  RETURN id, 2 AS tier`;
+  RETURN id, 2 AS tier, ${DECIDED}`;
+
+type Near = { id: string; tier: number; decided: unknown; decision: string };
 
 /**
  * The part of the workspace graph the caller can see, capped at NODE_CAP nodes. Decisions come first, then what links
@@ -78,7 +81,7 @@ const NEAR_DECISIONS = `
  */
 export async function graphView(ctx: BrainContext): Promise<GraphView> {
   const params = { types: [...NODE_TYPES] };
-  const [anchors, reached, excerpts, near] = await Promise.all([
+  const [anchors, reached, excerpts, nearRows] = await Promise.all([
     readAsCaller<GraphNode>(ctx, `${FROM_CALLER} MATCH (n) WHERE ${ANCHOR} AND n.id IS NOT NULL AND ${LIVE("n")} AND ${visible("n")} RETURN ${FIELDS}`, params),
     // People, topics and code have no visibility of their own, so they appear only next to a visible node.
     readAsCaller<GraphNode>(
@@ -98,16 +101,23 @@ export async function graphView(ctx: BrainContext): Promise<GraphView> {
        RETURN DISTINCT ${FIELDS}`,
       params,
     ),
-    readAsCaller<{ id: string; tier: number }>(ctx, NEAR_DECISIONS, { perDecision: CHANGES_PER_DECISION }),
+    readAsCaller<Near>(ctx, NEAR_DECISIONS, { perDecision: CHANGES_PER_DECISION }),
   ]);
 
   const byId = new Map<string, GraphNode>();
   for (const node of [...anchors, ...reached, ...excerpts]) if (!byId.has(node.id)) byId.set(node.id, node);
-  const tiers = new Map<string, number>();
-  for (const { id, tier } of near) tiers.set(id, Math.min(tier, tiers.get(id) ?? tier));
-  const rank = (n: GraphNode) => (CORE.includes(n.type) ? 0 : (tiers.get(n.id) ?? 3));
+  // A node near several decisions sorts with the newest one, so each decision's nodes stay together under the cap.
+  const near = new Map<string, { tier: number; group: string }>();
+  for (const row of nearRows) {
+    const group = `${String(row.decided ?? "")} ${row.decision}`;
+    const best = near.get(row.id);
+    if (!best || row.tier < best.tier || (row.tier === best.tier && group > best.group)) near.set(row.id, { tier: row.tier, group });
+  }
+  const rank = (n: GraphNode) => (CORE.includes(n.type) ? 0 : (near.get(n.id)?.tier ?? 3));
+  const group = (n: GraphNode) => near.get(n.id)?.group ?? "";
+  const newer = (a: GraphNode, b: GraphNode) => (group(a) === group(b) ? 0 : group(a) > group(b) ? -1 : 1);
   const all = [...byId.values()].sort(
-    (a, b) => rank(a) - rank(b) || NODE_TYPES.indexOf(a.type) - NODE_TYPES.indexOf(b.type),
+    (a, b) => rank(a) - rank(b) || newer(a, b) || NODE_TYPES.indexOf(a.type) - NODE_TYPES.indexOf(b.type),
   );
   const nodes = all.slice(0, NODE_CAP);
   const ids = nodes.map((n) => n.id);

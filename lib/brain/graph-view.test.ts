@@ -9,7 +9,7 @@ function node(id: string, type: NodeType): GraphNode {
   return { id, type, kind: null, name: id, text: null, url: null, status: null };
 }
 
-type Near = { id: string; tier: number };
+type Near = { id: string; tier: number; decided?: string; decision?: string };
 
 function viewContext(rows: { anchors?: GraphNode[]; reached?: GraphNode[]; excerpts?: GraphNode[]; near?: Near[] }) {
   return fakeContext((cypher) => {
@@ -79,4 +79,22 @@ test("Under the cap, a decision's quote, source, code and the PRs that changed i
   assert.equal(view.nodes.length, 300);
   assert.ok(!view.nodes.some((n) => n.id === "hidden_src"));
   assert.ok(!view.nodes.some((n) => n.id === "ex_other" || n.id === "p_other"));
+});
+
+test("When decisions and their sources pass the cap, the newest decisions keep both their quote and its source", async () => {
+  const day = (i: number) => `2026-01-01T00:00:00.${String(i).padStart(3, "0")}`;
+  const ids = Array.from({ length: 150 }, (_, i) => i);
+  const { ctx } = viewContext({
+    anchors: ids.flatMap((i) => [node(`dec_${i}`, "Decision"), node(`src_${i}`, "Source")]),
+    excerpts: ids.map((i) => node(`ex_${i}`, "Excerpt")),
+    near: ids.flatMap((i) => [
+      { id: `ex_${i}`, tier: 1, decided: day(i), decision: `dec_${i}` },
+      { id: `src_${i}`, tier: 1, decided: day(i), decision: `dec_${i}` },
+    ]),
+  });
+  const view = await graphView(ctx);
+  const kept = (prefix: string) => view.nodes.filter((n) => n.id.startsWith(prefix)).map((n) => n.id.slice(prefix.length)).sort();
+  const newest = ids.slice(75).map(String).sort();
+  assert.deepEqual(kept("ex_"), newest);
+  assert.deepEqual(kept("src_"), newest);
 });

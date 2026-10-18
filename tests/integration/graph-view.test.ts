@@ -79,3 +79,18 @@ test("a PR the caller cannot see is not pulled in next to the decision", async (
   assert.ok((await graphView(admin)).nodes.some((node) => node.name === "PR 3"));
   assert.ok(!(await graphView(guest)).nodes.some((node) => node.name === "PR 3"));
 });
+
+test("past the node cap, a guest gets the 5 newest PRs they can see on the decision's code, written out of order", async () => {
+  await writeBatch(admin.graph, prs([0], { touches: true, sensitivity: "public" }));
+  await saveItem(admin, { title: "Round refunds down", statement: "Refunds round down to the cent.", affects: [PATH], sensitivity: "public" });
+  await writeBatch(admin.graph, prs(Array.from({ length: 320 }, (_, i) => 1000 + i), { sensitivity: "public" }));
+  for (const number of [4, 1, 7, 3, 6, 2, 5]) await writeBatch(admin.graph, prs([number], { touches: true, createdAt: later(number), sensitivity: "public" }));
+  await writeBatch(admin.graph, prs([10, 11, 12, 13, 14], { touches: true, createdAt: later(20), sensitivity: "restricted" }));
+
+  const names = (view: { nodes: { name: string }[] }) => new Set(view.nodes.map((node) => node.name));
+  const guestView = names(await graphView(guest));
+  for (const number of [3, 4, 5, 6, 7]) assert.ok(guestView.has(`PR ${number}`), `PR ${number}`);
+  for (const number of [1, 2, 10]) assert.ok(!guestView.has(`PR ${number}`), `PR ${number}`);
+  const adminView = names(await graphView(admin));
+  for (const number of [10, 11, 12, 13, 14]) assert.ok(adminView.has(`PR ${number}`), `PR ${number}`);
+});
