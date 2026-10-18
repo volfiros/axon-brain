@@ -29,22 +29,24 @@ hit@k: at least one cited artifact in the first k results. recall@k: cited artif
 | + the conversation around the top 10 hits | 86.0 | 27.2 | 96.2 | 23.3 | 30.5 |
 | + question verbs (find, list, provide, show, give, tell) as stopwords | 88.3 | 29.3 | 96.7 | 24.3 | 32.2 |
 | + Sources a top hit references or is referenced by: `search_sources` | 88.3 | 29.3 | 96.7 | 24.3 | 32.4 |
+| + Sources `ABOUT` a Topic the query names (at least 60% of its words): `search_sources` | 88.3 | 29.3 | 96.7 | 24.3 | 33.2 |
 
 By question type, final search:
 
 | Type | n | hit@10 | recall@10 | recall@50 |
 | --- | --- | --- | --- | --- |
-| person | 260 | 91.5 | 29.6 | 34.3 |
-| content | 238 | 77.7 | 20.7 | 37.3 |
-| company | 130 | 87.7 | 31.5 | 38.5 |
-| pr | 167 | 97.6 | 39.6 | 16.1 |
-| url | 20 | 100 | 28.0 | 39.7 |
+| person | 260 | 91.5 | 29.6 | 34.4 |
+| content | 238 | 77.7 | 20.7 | 37.8 |
+| company | 130 | 87.7 | 31.5 | 38.2 |
+| pr | 167 | 97.6 | 39.6 | 20.4 |
+| url | 20 | 100 | 28.0 | 39.5 |
 
 What moved the numbers:
 
 - Raw Sources became searchable. Before, the brain only searched decisions, and HERB has none until someone extracts them.
 - FalkorDB's full-text score rewards short texts that repeat one word, so it ranks no better than chance on these questions. Taking a wide candidate pool and ranking it by how many of the question's words each Source covers, rarer words counting more, is what lifted hit@10 from 31 to 86, and dropping question verbs took it to 88.
 - Chat questions cite whole conversations, so each top message hit brings the messages within six hours of it in the same channel. That lifts recall@50 from 22 to 31 (32 with the stopwords) without moving the first 20 results.
+- Topic links help only when the query names most of the topic. Matching on any two shared words pulled whole feature PR lists into every answer and dropped recall@50 from 32.4 to 24.4; requiring 60% of the topic's words lifts it to 33.2 and PR recall@50 from 16.6 to 20.4.
 - Customers are referenced by id in messages; the `ExternalParty` nodes turn those ids into company names for the answer step.
 
 ## Answers: agent loop

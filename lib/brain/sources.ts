@@ -74,8 +74,13 @@ export async function searchSources(ctx: BrainContext, query: string, options: S
     { stems },
   );
   const topics = [...new Map(topical.map((t) => [t.topic, t.name])).entries()]
-    .map(([topic, name]) => ({ topic, covered: stems.filter((w) => name.includes(w)).length, coverage: coverage(name) }))
-    .filter((t) => t.covered >= 2)
+    .map(([topic, name]) => {
+      const words = searchTerms(name).stems;
+      const covered = words.filter((w) => stems.includes(w)).length;
+      return { topic, covered, share: covered / words.length, coverage: coverage(name) };
+    })
+    // A topic counts only when the query names most of it, so a shared word or two does not pull in its whole list.
+    .filter((t) => t.covered >= 2 && t.share >= 0.6)
     .sort((a, b) => b.coverage - a.coverage)
     .slice(0, 2);
 
