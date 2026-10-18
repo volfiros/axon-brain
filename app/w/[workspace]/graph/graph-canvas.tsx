@@ -1,6 +1,5 @@
 "use client";
 
-import { useTheme } from "next-themes";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ForceGraph2D, { type ForceGraphMethods, type LinkObject, type NodeObject } from "react-force-graph-2d";
 
@@ -49,7 +48,6 @@ export default function GraphCanvas({
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [colors, setColors] = useState<Record<string, string>>({});
   const [hoverId, setHoverId] = useState<string | null>(null);
-  const { resolvedTheme } = useTheme();
 
   const hovered = useMemo<Highlight | null>(() => {
     if (!hoverId) return null;
@@ -72,9 +70,14 @@ export default function GraphCanvas({
     return () => observer.disconnect();
   }, []);
 
+  // next-themes switches the class on <html> after child effects run, so the palette follows that class instead.
   useEffect(() => {
-    if (wrap.current) setColors(resolveColors(wrap.current, tokensFor(nodes, kinds)));
-  }, [resolvedTheme, nodes, kinds]);
+    const read = () => wrap.current && setColors(resolveColors(wrap.current, tokensFor(nodes, kinds)));
+    read();
+    const observer = new MutationObserver(read);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, [nodes, kinds]);
 
   const ready = size.width > 0;
   useEffect(() => {
