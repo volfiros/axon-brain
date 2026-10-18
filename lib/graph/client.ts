@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { FalkorDB, type Graph } from "falkordb";
 
 export type Params = NonNullable<NonNullable<Parameters<Graph["query"]>[1]>["params"]>;
@@ -74,6 +75,15 @@ export async function listWorkspaceSlugs(): Promise<string[]> {
     .filter((name) => name.startsWith(start))
     .map((name) => name.slice(start.length))
     .filter((slug) => slug !== ACCOUNTS && SLUG.test(slug));
+}
+
+export async function withScratchGraph<T>(base: string, fn: (graph: AxonGraph) => Promise<T>): Promise<T> {
+  const name = `${base}__algo_${randomUUID().replaceAll("-", "")}`;
+  try {
+    return await fn(openGraph(name));
+  } finally {
+    await (await connect()).selectGraph(name).delete().catch(() => undefined);
+  }
 }
 
 export async function ping(): Promise<void> {

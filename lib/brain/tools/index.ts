@@ -1,4 +1,6 @@
 import type { BrainTool } from "../tool";
+import changesSince from "./changes-since";
+import checkAnswer from "./check-answer";
 import impact from "./impact";
 import pendingSources from "./pending-sources";
 import proposeFromSource from "./propose-from-source";
@@ -23,4 +25,6 @@ export const tools: BrainTool[] = [
   proposeFromSource,
   reviewProposals,
   reviewSourceChanges,
+  changesSince,
+  checkAnswer,
 ];
