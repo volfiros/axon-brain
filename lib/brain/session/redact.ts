@@ -25,9 +25,12 @@ const SECRET_PATTERNS: [name: string, pattern: RegExp][] = [
   ["Google API key", /\bAIza[0-9A-Za-z_-]{35}/],
   ["API key", /\bsk-[A-Za-z0-9_-]{20,}/],
   ["JWT", /\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/],
-  ["credentials in a URL", /\b[a-z][a-z0-9+.-]*:\/\/[^\s:@/]+:[^\s@/]+@/i],
+  ["credentials in a URL", /\b[a-z][a-z0-9+.-]*:\/\/[^\s:@/]*:[^\s@/]+@/i],
   ["environment secret", /\b[A-Z][A-Z0-9_]*_(?:KEY|SECRET|TOKEN|PASSWORD)\s*=\s*\S+/],
-  ["authorization header", /\bAuthorization\s*:\s*\S{6,}/i],
+  [
+    "authorization header",
+    /\bAuthorization\s*:\s*(?:(?:Basic|Bearer|Token|Digest|ApiKey)\s+[A-Za-z0-9._~+/=-]{8,}|[A-Za-z0-9._~+/=-]{16,})/i,
+  ],
 ];
 
 const BEARER = /\b(?:Bearer|Basic|Token)\s+([A-Za-z0-9._~+/=-]{8,})/gi;

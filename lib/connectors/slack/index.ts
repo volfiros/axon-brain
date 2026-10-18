@@ -235,7 +235,8 @@ export function verifySlackSignature(
 ): boolean {
   if (!secret || !timestamp || !signature) return false;
   // Slack's replay protection: reject anything signed more than five minutes ago.
-  if (Math.abs(now / 1000 - Number(timestamp)) > MAX_SKEW_SECONDS) return false;
+  const signedAt = Number(timestamp);
+  if (!Number.isFinite(signedAt) || Math.abs(now / 1000 - signedAt) > MAX_SKEW_SECONDS) return false;
   const expected = Buffer.from(`v0=${createHmac("sha256", secret).update(`v0:${timestamp}:${rawBody}`).digest("hex")}`);
   const given = Buffer.from(signature);
   return expected.length === given.length && timingSafeEqual(expected, given);
