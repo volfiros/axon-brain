@@ -249,7 +249,7 @@ Link Slack and Link GitHub need `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET`, `GITHU
 
 ## Benchmark
 
-We ran Axon against [HERB](https://github.com/SalesforceAIResearch/HERB), Salesforce's enterprise deep-search benchmark (30 products, 43,209 Sources across Slack messages, docs, meetings and PRs, 815 answerable questions). Source search finds cited evidence in the first 10 results for 86% of questions, against 31% for FalkorDB full-text alone and 32% for a random order. Method, every number and the limits are in [docs/benchmark.md](docs/benchmark.md).
+We ran Axon against [HERB](https://github.com/SalesforceAIResearch/HERB), Salesforce's enterprise deep-search benchmark (30 products, 43,209 Sources across Slack messages, docs, meetings and PRs, 815 answerable questions). Source search finds cited evidence in the first 10 results for 88% of questions, against 31% for FalkorDB full-text alone and 32% for a random order. Method, every number and the limits are in [docs/benchmark.md](docs/benchmark.md).
 
 ## What we tested
 

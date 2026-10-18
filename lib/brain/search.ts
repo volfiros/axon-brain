@@ -1,5 +1,5 @@
 const STOPWORDS = new Set(
-  "a an and are about any can did do does for from get gets got had has have how into is it its not of on or our should that the their this to was we were what when where which who why will with would you your".split(
+  "a an and are about any can did find give list provide show tell do does for from get gets got had has have how into is it its not of on or our should that the their this to was we were what when where which who why will with would you your".split(
     " ",
   ),
 );
