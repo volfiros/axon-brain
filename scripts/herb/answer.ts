@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { promisify } from "node:util";
 
-import { searchSources } from "@/lib/brain/sources";
+import { searchSources, type FoundSource } from "@/lib/brain/sources";
 import { formatSource } from "@/lib/brain/tools/search-sources";
 import { closeConnection } from "@/lib/graph/client";
 
@@ -41,10 +41,24 @@ const FORMAT: Record<string, string> = {
   content: "a short answer in plain text",
 };
 
+async function queriesFor(product: string, question: string): Promise<string[]> {
+  const reply = await llm(
+    `You search the ${product} team's Slack, docs, meeting transcripts and pull requests with a keyword search tool.
+Write up to 3 short keyword queries (3 to 6 words each) that would find the evidence for this question. Reply with a JSON array of strings only.
+Question: ${question}`,
+  );
+  return listFrom(reply).slice(0, 3);
+}
+
 async function evidence(product: string, question: string): Promise<string> {
   const ctx = benchContext(product);
-  const found = (await searchSources(ctx, question, { limit: 30, direct: 18 })) ?? [];
-  const text = found.map((s, i) => formatSource(s, question, i + 1)).join("\n");
+  const queries = [question, ...(await queriesFor(product, question))];
+  const lists = await Promise.all(queries.map(async (q) => (await searchSources(ctx, q, { limit: 25, direct: 15 })) ?? []));
+  const merged = new Map<string, FoundSource>();
+  for (let i = 0; merged.size < 50 && lists.some((l) => i < l.length); i++) {
+    for (const list of lists) if (list[i] && !merged.has(list[i].id) && merged.size < 50) merged.set(list[i].id, list[i]);
+  }
+  const text = [...merged.values()].map((s, i) => formatSource(s, queries.join(" "), i + 1)).join("\n");
   // Customers appear by id in messages; the graph's ExternalParty nodes name their company.
   const ids = [...new Set(text.match(/CUST-\d{4}/g) ?? [])];
   const customers = ids.length
@@ -58,7 +72,8 @@ async function evidence(product: string, question: string): Promise<string> {
 
 function answerPrompt(product: string, question: string, type: string, context: string): string {
   return `You answer questions about the ${product} product team using only the Sources below, found by searching the company knowledge graph.
-If the Sources do not contain the answer, reply exactly UNANSWERABLE.
+Answer from whatever the Sources show, even if they cover the question only in part. Reply exactly UNANSWERABLE only when no Source is about the question at all.
+Product code names in the Sources may differ from the product name in the question.
 Answer as ${FORMAT[type] ?? FORMAT.content}, with nothing else.
 
 Question: ${question}
@@ -134,6 +149,8 @@ async function main() {
       ...p.unanswerable_questions.map((question) => ({ product, question, type: "unanswerable", truth: null })),
     ];
   });
+  const types = process.env.HERB_TYPES?.split(",");
+  if (types) items = items.filter((it) => types.includes(it.type));
   if (PER_TYPE) {
     const byType = new Map<string, Item[]>();
     items.forEach((it, i) => i % 7 === 0 && byType.set(it.type, [...(byType.get(it.type) ?? []), it]));
