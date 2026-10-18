@@ -1,22 +1,16 @@
 import { ConfirmButton } from "@/components/confirm-button";
+import { LinkAccountButtons } from "@/components/link-account-buttons";
 import { PageHeader } from "@/components/page-header";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { appUrl } from "@/lib/auth";
 import { requireMember } from "@/lib/auth/session";
 import { linkedIdentities } from "@/lib/connectors/identity";
-import { linkConfigured, type LinkProvider } from "@/lib/connectors/link";
 import { workspaceGraph } from "@/lib/graph/client";
 import { currentInvites, INVITE_ROLES, listMembers } from "@/lib/workspaces";
 
 import { leaveWorkspaceAction } from "./actions";
 import { InvitePanel } from "./invite-panel";
 import { MembersTable } from "./members-table";
-
-const LINKS: { provider: LinkProvider; title: string }[] = [
-  { provider: "slack", title: "Slack" },
-  { provider: "github", title: "GitHub" },
-];
 
 const LINK_RESULTS: Record<string, string> = {
   linked: "Linked. Your activity from that account now counts as yours.",
@@ -53,16 +47,7 @@ export default async function MembersPage({
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           {link && LINK_RESULTS[link] && <p className="text-secondary-foreground text-sm">{LINK_RESULTS[link]}</p>}
-          <div className="flex flex-wrap gap-2">
-            {LINKS.filter(({ provider }) => linkConfigured(provider)).map(({ provider, title }) => {
-              const done = linked.some((key) => key.startsWith(`${provider}:`));
-              return (
-                <Button key={provider} variant={done ? "secondary" : "brand"} shape="pill" asChild>
-                  <a href={`/api/connectors/${provider}/link?workspace=${slug}`}>{done ? `${title} linked, relink` : `Link ${title}`}</a>
-                </Button>
-              );
-            })}
-          </div>
+          <LinkAccountButtons slug={slug} linked={linked} />
         </CardContent>
       </Card>
       {isAdmin && (
