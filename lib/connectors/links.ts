@@ -10,9 +10,9 @@ export type Reference =
   | { kind: "pull"; repo: string; number: number }
   | { kind: "commit"; repo: string; sha: string }
   | { kind: "tree"; repo: string; rest: string }
-  | { kind: "workitem"; id: string }
-  | { kind: "key"; key: string }
-  | { kind: "slack"; channel: string; ts: string };
+  | { kind: "workitem"; id: string; host: string }
+  | { kind: "key"; key: string; host?: string }
+  | { kind: "slack"; channel: string; ts: string; host: string };
 
 export type Found = { ref: Reference; method: Method };
 
@@ -23,6 +23,7 @@ export type ScanSource = {
   title: string;
   text: string;
   branch?: string | null;
+  deleted?: boolean;
 };
 
 // Slack wraps links as <url|label>, so `|` and `>` end a URL.
@@ -46,18 +47,26 @@ export function refKey(ref: Reference): string {
     case "tree":
       return `tree:${ref.repo}/${ref.rest}`;
     case "workitem":
-      return `workitem:${ref.id}`;
+      return `workitem:${ref.id}@${ref.host}`;
     case "key":
-      return `key:${ref.key}`;
+      return ref.host ? `key:${ref.key}@${ref.host}` : `key:${ref.key}`;
     case "slack":
-      return `slack:${ref.channel}:${ref.ts}`;
+      return `slack:${ref.channel}:${ref.ts}@${ref.host}`;
   }
 }
 
 function githubRepo(source: ScanSource): string | null {
   if (source.connector !== "github") return null;
   const [owner, repo] = source.external_id.split("/");
-  return owner && repo ? `${owner}/${repo}`.toLowerCase() : null;
+  return owner && repo ? `${owner}/${repo}` : null;
+}
+
+function hostOf(url: string | null): string | null {
+  try {
+    return url ? new globalThis.URL(url).host.toLowerCase() : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Text with fenced and inline code removed, since code often quotes keys and URLs as examples. */
@@ -65,7 +74,10 @@ export function withoutCode(text: string): string {
   return text.replace(FENCED, " ").replace(INLINE, " ");
 }
 
-/** Parses one URL into a reference Axon can resolve, or null. */
+/**
+ * Parses one URL into a reference Axon can resolve, or null.
+ * Repository names keep the URL's case so resolution can match Source ids exactly through the id index.
+ */
 export function parseUrl(raw: string): Reference | null {
   let url: URL;
   try {
@@ -73,11 +85,12 @@ export function parseUrl(raw: string): Reference | null {
   } catch {
     return null;
   }
-  const host = url.hostname.toLowerCase();
+  const host = url.host.toLowerCase();
   if (host === "github.com" || host === "www.github.com") {
-    const [owner, repo, type, id, sub, subId] = url.pathname.split("/").filter(Boolean);
+    const parts = url.pathname.split("/").filter(Boolean);
+    const [owner, repo, type, id, sub, subId] = parts;
     if (!owner || !repo || !type || !id) return null;
-    const full = `${owner}/${repo}`.toLowerCase();
+    const full = `${owner}/${repo}`;
     if ((type === "pull" || type === "issues") && /^\d+$/.test(id)) {
       if (type === "pull" && sub === "commits" && subId && HEX.test(subId)) {
         return { kind: "commit", repo: full, sha: subId.toLowerCase() };
@@ -86,23 +99,31 @@ export function parseUrl(raw: string): Reference | null {
     }
     if ((type === "commit" || type === "commits") && HEX.test(id)) return { kind: "commit", repo: full, sha: id.toLowerCase() };
     if (type === "tree") {
-      const rest = decodeURIComponent(url.pathname.split("/").filter(Boolean).slice(3).join("/"));
-      return { kind: "tree", repo: full, rest };
+      // A stray "%" such as /tree/100%-done is not valid percent-encoding, and must not fail the whole sync.
+      try {
+        return { kind: "tree", repo: full, rest: decodeURIComponent(parts.slice(3).join("/")) };
+      } catch {
+        return null;
+      }
     }
     return null;
   }
   const item = PLANE_ITEM.exec(url.pathname);
-  if (item) return { kind: "workitem", id: item[1].toLowerCase() };
+  if (item) return { kind: "workitem", id: item[1].toLowerCase(), host };
   const browse = PLANE_BROWSE.exec(url.pathname);
-  if (browse) return { kind: "key", key: browse[1].toLowerCase() };
+  if (browse) return { kind: "key", key: browse[1].toUpperCase(), host };
   const slack = SLACK_PERMALINK.exec(url.pathname);
-  if (slack) return { kind: "slack", channel: slack[1], ts: `${slack[2]}.${slack[3]}` };
+  if (slack) return { kind: "slack", channel: slack[1], ts: `${slack[2]}.${slack[3]}`, host };
   return null;
 }
 
-/** Every explicit reference in a Source's title, text and branch name. Names and similar wording never count. */
+/**
+ * Every explicit reference in a Source's title, text and branch name. Names and similar wording never count.
+ * A deleted Source references nothing, so its edges are removed.
+ */
 export function findReferences(source: ScanSource): Found[] {
   const found = new Map<string, Found>();
+  if (source.deleted) return [];
   const add = (ref: Reference, method: Method) => {
     const key = refKey(ref);
     if (!found.has(key)) found.set(key, { ref, method });
@@ -114,7 +135,7 @@ export function findReferences(source: ScanSource): Found[] {
     if (ref) add(ref, "url");
   }
   const prose = text.replace(URL, " ");
-  for (const [, key] of prose.matchAll(KEY)) add({ kind: "key", key: key.toLowerCase() }, "key");
+  for (const [, key] of prose.matchAll(KEY)) add({ kind: "key", key: key.toUpperCase() }, "key");
 
   const repo = githubRepo(source);
   if (repo) {
@@ -124,83 +145,107 @@ export function findReferences(source: ScanSource): Found[] {
     }
   }
   if (source.branch) {
-    for (const [, key] of source.branch.matchAll(KEY)) add({ kind: "key", key: key.toLowerCase() }, "branch");
+    for (const [, key] of source.branch.matchAll(KEY)) add({ kind: "key", key: key.toUpperCase() }, "branch");
   }
   return [...found.values()];
 }
 
-/** Resolves references to Source ids already in this graph. Unresolved and ambiguous references are left out. */
+/** Bounds for an indexed range scan over ids that start with `prefix`. STARTS WITH does not use the index. */
+function idRange(prefix: string) {
+  return { lo: prefix, hi: prefix.slice(0, -1) + String.fromCharCode(prefix.charCodeAt(prefix.length - 1) + 1) };
+}
+
+type Hit = { key: string; id: string; url: string | null };
+
+/**
+ * Resolves references to Source ids already in this graph. Unresolved and ambiguous references are left out,
+ * and a Plane or Slack URL only resolves to a Source stored under the same host.
+ */
 async function resolve(graph: AxonGraph, refs: Reference[]): Promise<Map<string, string>> {
-  const resolved = new Map<string, string>();
+  const hosts = new Map(refs.flatMap((r) => ("host" in r && r.host ? [[refKey(r), r.host] as const] : [])));
+  const hits: Hit[] = [];
   const byKind = <K extends Reference["kind"]>(kind: K) =>
     refs.filter((r): r is Extract<Reference, { kind: K }> => r.kind === kind);
 
   const exact = [
-    ...byKind("pull").map((r) => ({ key: refKey(r), id: sourceId("github", `${r.repo}/pull/${r.number}`).toLowerCase() })),
-    ...byKind("workitem").map((r) => ({ key: refKey(r), id: sourceId("plane", r.id).toLowerCase() })),
-    ...byKind("slack").map((r) => ({ key: refKey(r), id: sourceId("slack", `${r.channel}:${r.ts}`).toLowerCase() })),
+    ...byKind("pull").map((r) => ({ key: refKey(r), id: sourceId("github", `${r.repo}/pull/${r.number}`) })),
+    ...byKind("workitem").map((r) => ({ key: refKey(r), id: sourceId("plane", r.id) })),
+    ...byKind("slack").map((r) => ({ key: refKey(r), id: sourceId("slack", `${r.channel}:${r.ts}`) })),
   ];
   if (exact.length > 0) {
-    const rows = await graph.query<{ key: string; id: string }>(
-      `UNWIND $rows AS r
-       MATCH (s:Source) WHERE toLower(s.id) = r.id
-       RETURN r.key AS key, s.id AS id`,
-      { rows: exact },
+    hits.push(
+      ...(await graph.query<Hit>(
+        `UNWIND $rows AS r
+         MATCH (s:Source {id: r.id})
+         RETURN r.key AS key, s.id AS id, s.url AS url`,
+        { rows: exact },
+      )),
     );
-    for (const row of rows) resolved.set(row.key, row.id);
   }
 
   const keys = byKind("key");
   if (keys.length > 0) {
-    const rows = await graph.query<{ key: string; id: string }>(
-      `MATCH (s:WorkItem:Source) WHERE toLower(s.key) IN $keys
-       RETURN toLower(s.key) AS key, s.id AS id`,
-      { keys: keys.map((r) => r.key) },
+    const rows = await graph.query<{ key: string; id: string; url: string | null }>(
+      "MATCH (s:WorkItem:Source) WHERE s.key IN $keys RETURN s.key AS key, s.id AS id, s.url AS url",
+      { keys: [...new Set(keys.map((r) => r.key))] },
     );
-    for (const row of rows) resolved.set(`key:${row.key}`, row.id);
+    for (const ref of keys) {
+      for (const row of rows) if (row.key === ref.key) hits.push({ ...row, key: refKey(ref) });
+    }
   }
 
-  const commits = byKind("commit").map((r) => ({ key: refKey(r), prefix: sourceId("github", `${r.repo}/commit/${r.sha}`) }));
+  const commits = byKind("commit").map((r) => ({ key: refKey(r), ...idRange(sourceId("github", `${r.repo}/commit/${r.sha}`)) }));
   if (commits.length > 0) {
-    // A short SHA counts only when exactly one known commit in that repository starts with it.
-    const rows = await graph.query<{ key: string; ids: string[] }>(
-      `UNWIND $rows AS r
-       MATCH (s:Commit:Source) WHERE toLower(s.id) STARTS WITH r.prefix
-       RETURN r.key AS key, collect(s.id) AS ids`,
-      { rows: commits },
+    hits.push(
+      ...(await graph.query<Hit>(
+        `UNWIND $rows AS r
+         MATCH (s:Commit:Source) WHERE s.id >= r.lo AND s.id < r.hi
+         RETURN r.key AS key, s.id AS id, s.url AS url`,
+        { rows: commits },
+      )),
     );
-    for (const row of rows) if (row.ids.length === 1) resolved.set(row.key, row.ids[0]);
   }
 
-  const trees = byKind("tree").map((r) => ({ key: refKey(r), prefix: `github:${r.repo}/pull/`, rest: r.rest }));
+  const trees = byKind("tree").map((r) => ({ key: refKey(r), rest: r.rest, ...idRange(sourceId("github", `${r.repo}/pull/`)) }));
   if (trees.length > 0) {
     // Branch names can contain "/", so /tree/<branch>/<path> resolves to the longest branch that fits.
-    const rows = await graph.query<{ key: string; id: string; branch: string }>(
+    const rows = await graph.query<Hit & { branch: string }>(
       `UNWIND $rows AS r
-       MATCH (s:PR:Source) WHERE toLower(s.id) STARTS WITH r.prefix AND s.branch IS NOT NULL
-         AND (r.rest = s.branch OR r.rest STARTS WITH s.branch + '/')
-       RETURN r.key AS key, s.id AS id, s.branch AS branch`,
+       MATCH (s:PR:Source) WHERE s.id >= r.lo AND s.id < r.hi AND s.branch IS NOT NULL
+         AND (r.rest = s.branch OR r.rest STARTS WITH (s.branch + '/'))
+       RETURN r.key AS key, s.id AS id, s.url AS url, s.branch AS branch`,
       { rows: trees },
     );
-    const best = new Map<string, { id: string; length: number }>();
-    for (const row of rows) {
-      const current = best.get(row.key);
-      if (!current || row.branch.length > current.length) best.set(row.key, { id: row.id, length: row.branch.length });
-    }
-    for (const [key, hit] of best) resolved.set(key, hit.id);
+    const longest = new Map<string, number>();
+    for (const row of rows) longest.set(row.key, Math.max(longest.get(row.key) ?? 0, row.branch.length));
+    hits.push(...rows.filter((row) => row.branch.length === longest.get(row.key)));
   }
+
+  // Exactly one match or none, as for a short SHA: two PRs on one branch or two commits sharing a prefix link to neither.
+  const byKey = new Map<string, Set<string>>();
+  for (const hit of hits) {
+    const host = hosts.get(hit.key);
+    if (host && hostOf(hit.url) !== host) continue;
+    byKey.set(hit.key, (byKey.get(hit.key) ?? new Set()).add(hit.id));
+  }
+  const resolved = new Map<string, string>();
+  for (const [key, ids] of byKey) if (ids.size === 1) resolved.set(key, [...ids][0]);
   return resolved;
 }
 
-async function storeKeysAndBranches(graph: AxonGraph, batch: Batch) {
-  const sources = (batch.sources ?? [])
-    .filter((s) => s.key || s.branch)
-    .map((s) => ({ id: sourceId(s.connector, s.external_id), key: s.key ?? null, branch: s.branch ?? null }));
+async function storeLinkProperties(graph: AxonGraph, batch: Batch) {
+  const sources = (batch.sources ?? []).map((s) => ({
+    id: sourceId(s.connector, s.external_id),
+    key: s.key ?? null,
+    branch: s.branch ?? null,
+  }));
   if (sources.length > 0) {
+    // ref_text is stored lowercased once here, so the referrer scan does not recompute it for every Source.
     await graph.query(
       `UNWIND $rows AS r
        MATCH (s:Source {id: r.id})
-       SET s.key = coalesce(r.key, s.key), s.branch = coalesce(r.branch, s.branch)`,
+       SET s.key = coalesce(r.key, s.key), s.branch = coalesce(r.branch, s.branch)
+       SET s.ref_text = toLower(coalesce(s.title, '') + ' ' + coalesce(s.text, '') + ' ' + coalesce(s.branch, ''))`,
       { rows: sources },
     );
   }
@@ -244,7 +289,8 @@ async function readSources(graph: AxonGraph, ids: string[]) {
   return graph.query<ScanSource & { key: string | null }>(
     `MATCH (s:Source) WHERE s.id IN $ids
      RETURN s.id AS id, s.connector AS connector, s.external_id AS external_id,
-            coalesce(s.title, '') AS title, coalesce(s.text, '') AS text, s.branch AS branch, s.key AS key`,
+            coalesce(s.title, '') AS title, coalesce(s.text, '') AS text, s.branch AS branch, s.key AS key,
+            s.deleted_at IS NOT NULL AS deleted`,
     { ids },
   );
 }
@@ -253,12 +299,10 @@ async function readSources(graph: AxonGraph, ids: string[]) {
 async function referringSources(graph: AxonGraph, ids: string[], needles: string[]): Promise<string[]> {
   if (needles.length === 0) return [];
   const rows = await graph.query<{ id: string }>(
-    // any(n IN $needles WHERE hay CONTAINS n) over a WITH alias matched nothing on FalkorDB 4.18, so needles are unwound.
-    `UNWIND $needles AS n
-     MATCH (s:Source)
-     WHERE NOT s.id IN $ids
-       AND toLower(coalesce(s.title, '') + ' ' + coalesce(s.text, '') + ' ' + coalesce(s.branch, '')) CONTAINS n
-     RETURN DISTINCT s.id AS id LIMIT ${CANDIDATE_LIMIT}`,
+    // any(n IN $needles WHERE alias CONTAINS n) over a WITH alias matched nothing on FalkorDB 4.18; on a property it works.
+    `MATCH (s:Source)
+     WHERE s.ref_text IS NOT NULL AND any(n IN $needles WHERE s.ref_text CONTAINS n) AND NOT s.id IN $ids
+     RETURN s.id AS id LIMIT ${CANDIDATE_LIMIT}`,
     { ids, needles },
   );
   return rows.map((r) => r.id);
@@ -269,7 +313,7 @@ async function referringSources(graph: AxonGraph, ids: string[], needles: string
  * One edge per pair; edges whose reference is gone from the text are deleted.
  */
 export async function writeReferences(graph: AxonGraph, batch: Batch): Promise<void> {
-  await storeKeysAndBranches(graph, batch);
+  await storeLinkProperties(graph, batch);
   const ids = [...new Set((batch.sources ?? []).map((s) => sourceId(s.connector, s.external_id)))];
   if (ids.length === 0) return;
 
