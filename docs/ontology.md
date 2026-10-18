@@ -197,7 +197,7 @@ RETURN d.id, d.sensitivity, affects
 ORDER BY coalesce(d.valid_from, d.recorded_at) DESC
 ```
 
-The Graph page (`lib/brain/graph-view.ts`) draws what the caller can see. Decisions, Sources, Constraints and Assumptions pass `visible(n)`; Persons, Topics and CodeUnits appear only next to one of those; Excerpts only when their Source is visible. Dismissed Decisions and deleted Sources are left out. The page keeps at most 300 nodes, Decisions first, and says when it cut some. Edges are then read only between the ids that passed, without `VISIBLE_TO`.
+The Graph page (`lib/brain/graph-view.ts`) draws what the caller can see. Decisions, Sources, Constraints and Assumptions pass `visible(n)`; Persons, Topics and CodeUnits appear only next to one of those; Excerpts only when their Source is visible. Dismissed Decisions and deleted Sources are left out. The page keeps at most 300 nodes and says when it cut some. It fills them from the decisions outward: Decisions, Constraints and Assumptions; then each decision's Excerpts and their Sources, and what it points at (`MADE_BY`, `APPROVED_BY`, `ABOUT`, `AFFECTS`, `BECAUSE_OF`); then the 5 newest Sources the caller can see per decision that `TOUCHES` the code it affects; then everything else by type. Within each step the newest decisions come first, so the cap keeps whole decisions with their quotes and sources. That ranking reads only ids, so a node is drawn only if the visibility-filtered reads also returned it. Edges are then read only between the ids that passed, without `VISIBLE_TO`.
 
 ```cypher
 MATCH (u:Person {id: $personId})-[:HAS_ROLE]->(role:Role)
